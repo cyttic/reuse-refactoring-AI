@@ -43,7 +43,8 @@ class TaskContext:
         self.function = find_function(ast.parse(self.mutated), task["caller_qualname"])
         self.function_source = "".join(
             self.mutated.splitlines(keepends=True)[self.function.lineno - 1: self.function.end_lineno])
-        self.snippets = repo_snippets(index, exclude_path=task["caller_file"])
+        self.index = index
+        self.snippets = repo_snippets(index, exclude_path=task["caller_file"])   # retrieval corpus
         self._bm25: BM25 | None = None
 
     def retrieve(self, k: int) -> list[Snippet]:
@@ -52,7 +53,8 @@ class TaskContext:
         return [self.snippets[i] for i in self._bm25.top(tokenize(self.function_source), k)]
 
     def helper_snippet(self) -> Snippet | None:
-        return next((s for s in self.snippets if s.origin == self.task["helper_qualname"]), None)
+        # Search every module: same-module helpers are excluded from the retrieval corpus.
+        return next((s for s in repo_snippets(self.index) if s.origin == self.task["helper_qualname"]), None)
 
     def file_view(self, max_chars: int) -> tuple[str, bool]:
         """The mutated file, or a window around the target function if the file is too long."""

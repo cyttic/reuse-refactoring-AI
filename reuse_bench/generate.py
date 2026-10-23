@@ -52,15 +52,18 @@ class HFBackend:
         texts = []
         for i, messages in enumerate(conversations, 1):
             t0 = time.time()
-            ids = self.tok.apply_chat_template(messages, add_generation_prompt=True,
-                                               return_tensors="pt").to(self.model.device)
+            # return_dict=True gives the same type on old and new transformers versions
+            inputs = self.tok.apply_chat_template(messages, add_generation_prompt=True, return_dict=True,
+                                                  return_tensors="pt").to(self.model.device)
+            n_in = inputs["input_ids"].shape[1]
             sample = self.args.temperature > 0
             with self.torch.no_grad():
-                out = self.model.generate(ids, max_new_tokens=self.args.max_tokens, do_sample=sample,
-                                          temperature=self.args.temperature if sample else None)
-            texts.append(self.tok.decode(out[0, ids.shape[1]:], skip_special_tokens=True))
-            print(f"    prompt {i}/{len(conversations)}: {ids.shape[1]} tokens in, "
-                  f"{out.shape[1] - ids.shape[1]} out, {time.time() - t0:.0f}s")
+                out = self.model.generate(**inputs, max_new_tokens=self.args.max_tokens, do_sample=sample,
+                                          temperature=self.args.temperature if sample else None,
+                                          pad_token_id=self.tok.pad_token_id or self.tok.eos_token_id)
+            texts.append(self.tok.decode(out[0, n_in:], skip_special_tokens=True))
+            print(f"    prompt {i}/{len(conversations)}: {n_in} tokens in, "
+                  f"{out.shape[1] - n_in} out, {time.time() - t0:.0f}s")
         return texts
 
 

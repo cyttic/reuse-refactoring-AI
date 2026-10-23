@@ -39,6 +39,11 @@ def test_method_is_reindented_and_extra_helper_goes_to_module_level():
     assert info["new_functions"] == ["_double"]
 
 
+def test_unclosed_code_block_is_accepted():
+    new, _ = apply_edit(SOURCE, "target", "```python\ndef target(x):\n    return x.strip()\n")
+    assert "    return x.strip()\n" in new and "y.lower()" not in new
+
+
 def test_signature_change_is_reported():
     _, info = apply_edit(SOURCE, "target", "```python\ndef target(x, strict=False):\n    return x\n```")
     assert not info["signature_kept"]

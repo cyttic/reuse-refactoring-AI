@@ -22,6 +22,9 @@ def extract_code(text: str, name: str) -> str:
             return block
     if blocks:
         return blocks[-1]
+    unclosed = re.search(r"```[ \t]*(?:python|py|python3)?[ \t]*\n(.*)$", text, re.S)
+    if unclosed:
+        return unclosed.group(1)    # output hit the token limit before the closing fence
     if re.search(rf"\bdef\s+{re.escape(name)}\s*\(", text):
         return text     # model answered without a code fence
     raise EditError("no code block in output")
