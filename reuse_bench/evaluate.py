@@ -27,12 +27,17 @@ def called_origins(index: RepoIndex, module_name: str, source: str, qualname: st
     module = Module(module_name, Path(), source, tree, False)
     collect_bindings(module)
     origins = set()
-    for node in ast.walk(find_function(tree, qualname)):
+    fn = find_function(tree, qualname)
+    cls = qualname.rpartition(".")[0]
+    self_name = fn.args.args[0].arg if cls and fn.args.args else None
+    for node in ast.walk(fn):
         if not isinstance(node, ast.Call):
             continue
         func = node.func
         if isinstance(func, ast.Name) and func.id in module.bindings:
             origins.add(index.resolve(module.bindings[func.id]))
+        elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) and func.value.id == self_name:
+            origins.add(f"{module_name}.{cls}.{func.attr}")
         elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name) \
                 and func.value.id in module.bindings:
             origins.add(index.resolve(f"{index.resolve(module.bindings[func.value.id])}.{func.attr}"))

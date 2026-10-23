@@ -3,5 +3,60 @@
     "url": "https://github.com/mahmoud/boltons",
     "commit": "4e5faa3d7e4008d89e0d8bf1ea87b6d9a061a16d",
     "pytest_args": "-x -q -p no:cacheprovider tests"
+  },
+  "cachetools": {
+    "url": "https://github.com/tkem/cachetools",
+    "commit": "6f23e2a7b75a42d30cb9d890ab3ca4059ee01bfd",
+    "pytest_args": "-x -q -p no:cacheprovider tests"
+  },
+  "click": {
+    "url": "https://github.com/pallets/click",
+    "commit": "2247b35ea1c47c727d7a06e51fa280e12a863ff6",
+    "pytest_args": "-x -q -p no:cacheprovider tests --ignore=tests/test_deprecations.py"
+  },
+  "mistune": {
+    "url": "https://github.com/lepture/mistune",
+    "commit": "f7ec702edfc1ad5579a76f881238841af266d93c",
+    "pytest_args": "-x -q -p no:cacheprovider tests"
+  },
+  "parso": {
+    "url": "https://github.com/davidhalter/parso",
+    "commit": "b26da16316da46e4770d589ed5f8d404531a22af",
+    "pytest_args": "-x -q -p no:cacheprovider test"
+  },
+  "pycparser": {
+    "url": "https://github.com/eliben/pycparser",
+    "commit": "3ec766b7cd94724cba714296509604597ea4ce4e",
+    "pytest_args": "-x -q -p no:cacheprovider tests"
+  },
+  "pyflakes": {
+    "url": "https://github.com/PyCQA/pyflakes",
+    "commit": "f0a8b98156ba1645a45bc7d77dcfe79dbbf11f10",
+    "pytest_args": "-x -q -p no:cacheprovider pyflakes/test"
+  },
+  "pygments": {
+    "url": "https://github.com/pygments/pygments",
+    "commit": "156d85fdd18d34427fe893527e71da91dcfb0eb5",
+    "pytest_args": "-x -q -p no:cacheprovider tests --ignore=tests/contrast"
+  },
+  "python-tabulate": {
+    "url": "https://github.com/astanin/python-tabulate",
+    "commit": "268615a5c27dc40e5c22454c07b44d5c50410da0",
+    "pytest_args": "-x -q -p no:cacheprovider test"
+  },
+  "sqlparse": {
+    "url": "https://github.com/andialbrecht/sqlparse",
+    "commit": "60cdc649726bf1bc4f1b336050560b336da715ec",
+    "pytest_args": "-x -q -p no:cacheprovider tests"
+  },
+  "tomlkit": {
+    "url": "https://github.com/python-poetry/tomlkit",
+    "commit": "eddd27e43a62fe58707c311bfad2f52e72493f53",
+    "pytest_args": "-x -q -p no:cacheprovider tests --ignore=tests/test_toml_tests.py"
+  },
+  "toolz": {
+    "url": "https://github.com/pytoolz/toolz",
+    "commit": "451af60dec590a6010e2babdbf391ea8f815122f",
+    "pytest_args": "-x -q -p no:cacheprovider toolz/tests --deselect toolz/tests/test_package.py::test_has_version"
   }
 }

@@ -25,7 +25,7 @@ def _git_commit(repo: Path) -> str | None:
 def make_task(repo: Path, commit: str | None, mutation: Mutation, usages: Counter[str]) -> dict:
     site = mutation.site
     rel = site.module.path.as_posix()
-    helper_origin = f"{site.helper_module.name}.{site.helper.name}"
+    helper_origin = f"{site.helper_module.name}.{site.helper_qualname}"
     patch = "".join(difflib.unified_diff(
         site.module.source.splitlines(keepends=True), mutation.new_source.splitlines(keepends=True),
         fromfile=f"a/{rel}", tofile=f"b/{rel}"))
@@ -39,6 +39,7 @@ def make_task(repo: Path, commit: str | None, mutation: Mutation, usages: Counte
         "caller_line": site.caller.lineno,
         "call_line": site.stmt.lineno,
         "call_kind": site.kind,
+        "call_style": site.style,
         "helper_file": site.helper_module.path.as_posix(),
         "helper_qualname": helper_origin,
         "helper_same_module": site.helper_module is site.module,
@@ -53,7 +54,8 @@ def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("repo", type=Path)
     parser.add_argument("--out", type=Path, required=True)
-    parser.add_argument("--pytest-args", default="-x -q -p no:cacheprovider")
+    parser.add_argument("--pytest-args", help="default: the repo's entry in --manifest")
+    parser.add_argument("--manifest", type=Path, default=Path("data/repos.json"))
     parser.add_argument("--timeout", type=int, default=900, help="seconds per test-suite run")
     parser.add_argument("--max-tasks", type=int)
     parser.add_argument("--max-per-helper", type=int, default=3)
@@ -63,6 +65,9 @@ def main(argv: list[str] | None = None) -> None:
     args = parser.parse_args(argv)
 
     repo = args.repo.resolve()
+    if args.pytest_args is None:
+        manifest = json.loads(args.manifest.read_text()) if args.manifest.exists() else {}
+        args.pytest_args = manifest.get(repo.name, {}).get("pytest_args", "-x -q -p no:cacheprovider")
     index = RepoIndex.build(repo)
     limits = Limits(args.min_helper_size, args.max_helper_lines)
     usages = index.usage_counts()
@@ -73,7 +78,7 @@ def main(argv: list[str] | None = None) -> None:
 
     for site in find_sites(index):
         caller_key = (site.module.name, site.caller_qualname)
-        helper_origin = f"{site.helper_module.name}.{site.helper.name}"
+        helper_origin = f"{site.helper_module.name}.{site.helper_qualname}"
         if caller_key in used_callers:
             reasons["caller already has a task"] += 1
             continue

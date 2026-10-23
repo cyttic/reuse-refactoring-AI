@@ -131,6 +131,8 @@ def build_prompt(ctx: TaskContext, condition: str, instruction: str, k: int, max
         "Keep its name, signature and behaviour unchanged, and do not modify other functions.",
         f"Reply with the complete new version of `{qualname.rpartition('.')[2]}` in a single "
         "```python code block. If it needs new imports or helper functions, include them in the same block.",
+        # Added after the pilot: models echoed or stubbed context code (e.g. a class reduced to 2 of 7 methods).
+        "Only output the changed function and any new helpers; do not repeat existing code.",
     ]
     if snippets:
         parts.append("Other code in the repository that may be relevant:")

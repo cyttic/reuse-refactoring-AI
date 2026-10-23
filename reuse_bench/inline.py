@@ -2,6 +2,9 @@
 
 The original F (which calls H) is the reference solution; the mutated F, which
 re-implements H's logic, is the task input.
+
+Supported call styles: `h(...)` (function imported or defined in the module), `mod.h(...)`
+(function of an imported repository module) and `self.h(...)` (method of the caller's class).
 """
 from __future__ import annotations
 
@@ -37,6 +40,9 @@ class Site:
     kind: str                   # "return" | "assign" | "expr"
     helper_module: Module
     helper: ast.FunctionDef
+    helper_qualname: str        # "h" or "Class.h", relative to helper_module
+    style: str                  # "name" | "module" | "self"
+    ref: str                    # name in F that the call goes through: h, the module alias, or self
 
 
 @dataclass
@@ -81,18 +87,43 @@ def _call_of(stmt: ast.stmt) -> tuple[ast.Call, str] | None:
     return None
 
 
+def _self_name(caller: FunctionNode) -> str | None:
+    """Name of the instance parameter of a plain method."""
+    decorators = {d.id for d in caller.decorator_list if isinstance(d, ast.Name)}
+    if decorators & {"staticmethod", "classmethod"} or not caller.args.args:
+        return None
+    return caller.args.args[0].arg
+
+
 def find_sites(index: RepoIndex) -> Iterator[Site]:
     """Every statement-level call from a repository function to a repository helper."""
     for name in sorted(index.modules):
         module = index.modules[name]
         for qualname, caller in _callers(module):
+            cls = qualname.split(".")[0] if "." in qualname else None
+            self_name = _self_name(caller) if cls else None
             for stmt in _iter_stmts(caller.body):
                 found = _call_of(stmt)
-                if not found or not isinstance(found[0].func, ast.Name):
+                if not found:
                     continue
-                target = index.function(module.bindings.get(found[0].func.id))
-                if target is not None:
-                    yield Site(module, caller, qualname, stmt, found[0], found[1], *target)
+                call, kind = found
+                func = call.func
+                if isinstance(func, ast.Name):
+                    target = index.function(module.bindings.get(func.id))
+                    if target and target[1] is target[0].functions.get(target[1].name):
+                        yield Site(module, caller, qualname, stmt, call, kind, *target,
+                                   target[1].name, "name", func.id)
+                elif isinstance(func, ast.Attribute) and isinstance(func.value, ast.Name):
+                    ref = func.value.id
+                    if ref == self_name and func.attr in module.methods.get(cls, {}):
+                        yield Site(module, caller, qualname, stmt, call, kind, module,
+                                   module.methods[cls][func.attr], f"{cls}.{func.attr}", "self", ref)
+                    elif ref in module.bindings:
+                        origin = index.resolve(module.bindings[ref])
+                        helper_module = index.modules.get(origin)
+                        if helper_module and func.attr in helper_module.functions:
+                            yield Site(module, caller, qualname, stmt, call, kind, helper_module,
+                                       helper_module.functions[func.attr], func.attr, "module", ref)
 
 
 def _strip_docstring(body: list[ast.stmt]) -> list[ast.stmt]:
@@ -131,15 +162,18 @@ def free_names(fn: ast.FunctionDef) -> set[str]:
 
 
 def check_helper(helper: ast.FunctionDef, limits: Limits) -> list[ast.stmt]:
-    """Return the helper body (without docstring) if it can be inlined safely."""
+    """Return the helper body (without docstring) if it can be inlined safely.
+
+    How `return` statements are handled depends on the call site and is checked in `inline`.
+    """
     if helper.decorator_list:
         raise Rejected("helper is decorated")
     args = helper.args
     if args.vararg or args.kwarg or args.kwonlyargs:
         raise Rejected("helper has *args, **kwargs or keyword-only params")
     body = _strip_docstring(helper.body)
-    if not body or not isinstance(body[-1], ast.Return) or body[-1].value is None:
-        raise Rejected("helper does not end in `return <value>`")
+    if not body:
+        raise Rejected("helper has no body")
     size = 0
     for node in ast.walk(ast.Module(body=body, type_ignores=[])):
         if isinstance(node, (ast.Yield, ast.YieldFrom, ast.Await)):
@@ -148,16 +182,24 @@ def check_helper(helper: ast.FunctionDef, limits: Limits) -> list[ast.stmt]:
             raise Rejected("helper has a nested scope")
         if isinstance(node, (ast.Global, ast.Nonlocal, ast.Import, ast.ImportFrom)):
             raise Rejected("helper has global/nonlocal/import statements")
-        if isinstance(node, ast.Return) and node is not body[-1]:
-            raise Rejected("helper has an early return")
-        if isinstance(node, ast.Constant) and isinstance(node.value, str) and "\n" in node.value:
-            raise Rejected("helper has a multi-line string")
         size += isinstance(node, (ast.stmt, ast.expr))
     if size < limits.min_helper_size:
         raise Rejected("helper is too small")
     if helper.end_lineno - helper.lineno + 1 > limits.max_helper_lines:
         raise Rejected("helper is too long")
     return body
+
+
+def _check_returns(body: list[ast.stmt], kind: str) -> None:
+    """Which `return` layouts can be inlined at which kind of call site."""
+    returns = [n for n in ast.walk(ast.Module(body=body, type_ignores=[])) if isinstance(n, ast.Return)]
+    single_final = len(returns) == 1 and returns[0] is body[-1]
+    if kind == "return":
+        return      # every `return` in H also returns from F: always equivalent
+    if kind == "assign" and not (single_final and body[-1].value is not None):
+        raise Rejected("helper is assigned but does not end in a single `return <value>`")
+    if kind == "expr" and returns and not single_final:
+        raise Rejected("helper has an early return")
 
 
 def _bind_args(helper: ast.FunctionDef, call: ast.Call) -> list[tuple[str, ast.expr]]:
@@ -222,7 +264,7 @@ def _splice(source: str, stmt: ast.stmt, text: str) -> str:
 
 
 def _drop_unused_import(source: str, name: str) -> str:
-    """Remove `from x import name` if the name is no longer used, so the import does not hint at H."""
+    """Remove the import binding `name` if it is no longer used, so the import does not hint at H."""
     tree = ast.parse(source)
     if any(isinstance(n, ast.Name) and n.id == name for n in ast.walk(tree)):
         return source
@@ -230,34 +272,87 @@ def _drop_unused_import(source: str, name: str) -> str:
         return source  # probably listed in __all__
     lines = source.splitlines(keepends=True)
     for node in tree.body:
-        if isinstance(node, ast.ImportFrom) and any((a.asname or a.name) == name for a in node.names):
-            rest = [a for a in node.names if (a.asname or a.name) != name]
-            new = ast.unparse(ast.ImportFrom(node.module, rest, node.level)) + "\n" if rest else ""
+        if not isinstance(node, (ast.Import, ast.ImportFrom)):
+            continue
+        bound = lambda a: a.asname or (a.name if isinstance(node, ast.ImportFrom) else a.name.split(".")[0])
+        if any(bound(a) == name for a in node.names):
+            rest = [a for a in node.names if bound(a) != name]
+            if not rest:
+                new = ""
+            elif isinstance(node, ast.ImportFrom):
+                new = ast.unparse(ast.ImportFrom(node.module, rest, node.level)) + "\n"
+            else:
+                new = ast.unparse(ast.Import(rest)) + "\n"
             return "".join(lines[: node.lineno - 1]) + new + "".join(lines[node.end_lineno:])
     return source
 
 
+def _import_for(name: str, origin: str) -> str:
+    """An import statement that binds `name` to `origin` (a module, or an attribute of one)."""
+    base, _, attr = origin.rpartition(".")
+    if not base:
+        return f"import {origin}" if origin == name else f"import {origin} as {name}"
+    return f"from {base} import {attr}" if attr == name else f"from {base} import {attr} as {name}"
+
+
+def _add_imports(source: str, imports: list[str]) -> str:
+    """Insert imports after the last top-level import (or the module docstring)."""
+    tree = ast.parse(source)
+    line = 0
+    for i, node in enumerate(tree.body):
+        is_doc = i == 0 and isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant)
+        if is_doc or isinstance(node, (ast.Import, ast.ImportFrom)):
+            line = node.end_lineno
+        elif line:
+            break
+    lines = source.splitlines(keepends=True)
+    return "".join(lines[:line]) + "".join(i + "\n" for i in imports) + "".join(lines[line:])
+
+
+def _references(caller: FunctionNode, site: Site) -> int:
+    """How often F refers to H through the name the call uses."""
+    if site.style == "name":
+        return sum(isinstance(n, ast.Name) and n.id == site.ref for n in ast.walk(caller))
+    attr = site.helper.name
+    return sum(isinstance(n, ast.Attribute) and n.attr == attr and isinstance(n.value, ast.Name)
+               and n.value.id == site.ref for n in ast.walk(caller))
+
+
 def inline(index: RepoIndex, site: Site, limits: Limits = Limits()) -> Mutation:
-    helper, caller, name = site.helper, site.caller, site.call.func.id
+    helper, caller = site.helper, site.caller
     if helper is caller:
         raise Rejected("recursive call")
     body = check_helper(helper, limits)
+    _check_returns(body, site.kind)
 
     caller_locals = local_names(caller)
-    if name in caller_locals:
+    if site.style != "self" and site.ref in caller_locals:
         raise Rejected("helper name is shadowed in the caller")
-    if sum(isinstance(n, ast.Name) and n.id == name for n in ast.walk(caller)) != 1:
+    if _references(caller, site) != 1:
         raise Rejected("helper is referenced more than once in the caller")
+    if site.style == "self":
+        if index.method_definers(helper.name) > 1:
+            raise Rejected("helper method is defined by several classes (may be overridden)")
+        if any(isinstance(n, ast.Attribute) and n.attr == helper.name for n in ast.walk(helper)):
+            raise Rejected("helper is recursive")
     free = free_names(helper)
     if helper.name in free:
         raise Rejected("helper is recursive")
-    for n in free:
+    # Names H uses from its own module are imported into F's module, as whoever duplicated H would have.
+    needed_imports = []
+    for n in sorted(free):
         if n in caller_locals:
             raise Rejected("a name used by the helper is shadowed in the caller")
-        if not _same_binding(index, n, site.helper_module, site.module):
+        if _same_binding(index, n, site.helper_module, site.module):
+            continue
+        if n in site.module.bindings or n not in site.helper_module.bindings:
             raise Rejected("a name used by the helper is not available in the caller module")
+        needed_imports.append(_import_for(n, site.helper_module.bindings[n]))
 
-    bound = _bind_args(helper, site.call)
+    call = site.call
+    if site.style == "self":   # self.h(a) is h(self, a)
+        call = ast.Call(func=call.func, args=[ast.Name(site.ref, ast.Load()), *call.args], keywords=call.keywords)
+    bound = _bind_args(helper, call)
     stored = {n.id for n in ast.walk(helper) if isinstance(n, ast.Name) and not isinstance(n.ctx, ast.Load)}
     # Side-effect-free arguments are substituted directly; the rest get a temporary variable.
     subst = {p: e for p, e in bound if isinstance(e, (ast.Name, ast.Constant)) and p not in stored}
@@ -277,21 +372,31 @@ def inline(index: RepoIndex, site: Site, limits: Limits = Limits()) -> Mutation:
         for p, e in bound if p not in subst
     ]
     renamer = _Renamer(rename, subst)
-    *head, ret = [renamer.visit(copy.deepcopy(s)) for s in body]
-    out += head
+    renamed = [renamer.visit(copy.deepcopy(s)) for s in body]
     if site.kind == "return":
-        out.append(ast.Return(ret.value))
-    elif site.kind == "assign":
-        out.append(ast.Assign(targets=[copy.deepcopy(site.stmt.targets[0])], value=ret.value))
-    elif not isinstance(ret.value, (ast.Name, ast.Constant)):
-        out.append(ast.Expr(ret.value))
+        out += renamed
+        if not isinstance(renamed[-1], ast.Return):
+            out.append(ast.Return(None))     # H fell off its end, so `return H(...)` returned None
+    elif isinstance(renamed[-1], ast.Return):
+        *head, ret = renamed
+        out += head
+        if site.kind == "assign":
+            out.append(ast.Assign(targets=[copy.deepcopy(site.stmt.targets[0])], value=ret.value))
+        elif ret.value is not None and not isinstance(ret.value, (ast.Name, ast.Constant)):
+            out.append(ast.Expr(ret.value))
+    else:
+        out += renamed                      # a procedure called as a statement
     if not out:
         raise Rejected("nothing left to inline")
 
     inlined = ast.unparse(ast.fix_missing_locations(ast.Module(body=out, type_ignores=[])))
+    if '"""' in inlined or "'''" in inlined:
+        raise Rejected("inlined code has a docstring-like string")   # re-indenting would change it
     new_source = _splice(site.module.source, site.stmt, inlined)
-    if site.helper_module is not site.module:
-        new_source = _drop_unused_import(new_source, name)
+    if site.style != "self" and site.helper_module is not site.module:
+        new_source = _drop_unused_import(new_source, site.ref)
+    if needed_imports:
+        new_source = _add_imports(new_source, needed_imports)
     try:
         ast.parse(new_source)
     except SyntaxError as exc:

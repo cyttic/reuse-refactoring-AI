@@ -70,12 +70,16 @@ class Sandbox:
     def baseline_coverage(self) -> tuple[TestResult, dict[str, set[int]]]:
         """Run the unmodified suite under coverage; return executed lines per repo-relative file."""
         data, report = Path(self._tmp) / ".coverage", Path(self._tmp) / "coverage.json"
-        result = self._run([sys.executable, "-m", "coverage", "run", f"--data-file={data}",
-                            "-m", "pytest", *self.pytest_args])
+        # An empty rcfile: the repository's own coverage config may need plugins we do not install.
+        rcfile = Path(self._tmp) / "coveragerc"
+        rcfile.write_text("[run]\n")
+        result = self._run([sys.executable, "-m", "coverage", "run", f"--rcfile={rcfile}",
+                            f"--data-file={data}", "-m", "pytest", *self.pytest_args])
         executed: dict[str, set[int]] = {}
         if result.passed:
-            subprocess.run([sys.executable, "-m", "coverage", "json", f"--data-file={data}",
-                            "-o", str(report)], cwd=self.root, capture_output=True, timeout=300)
+            subprocess.run([sys.executable, "-m", "coverage", "json", f"--rcfile={rcfile}",
+                            f"--data-file={data}", "-o", str(report)],
+                           cwd=self.root, capture_output=True, timeout=300)
             if report.exists():
                 for name, info in json.loads(report.read_text())["files"].items():
                     path = (self.root / name).resolve()

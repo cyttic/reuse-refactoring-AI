@@ -21,6 +21,7 @@ class Module:
     # global name -> origin ("pkg.utils.helper", "os.path", ...)
     bindings: dict[str, str] = field(default_factory=dict)
     functions: dict[str, ast.FunctionDef] = field(default_factory=dict)
+    methods: dict[str, dict[str, ast.FunctionDef]] = field(default_factory=dict)   # class -> name -> def
 
 
 def is_test_path(rel: Path) -> bool:
@@ -67,6 +68,8 @@ def collect_bindings(module: Module) -> None:
             module.bindings[node.name] = f"{module.name}.{node.name}"
             if isinstance(node, ast.FunctionDef):
                 module.functions[node.name] = node
+            if isinstance(node, ast.ClassDef):
+                module.methods[node.name] = {m.name: m for m in node.body if isinstance(m, ast.FunctionDef)}
         elif isinstance(node, (ast.Assign, ast.AnnAssign)):
             targets = node.targets if isinstance(node, ast.Assign) else [node.target]
             for target in targets:
@@ -116,14 +119,23 @@ class RepoIndex:
         return origin
 
     def function(self, origin: str | None) -> tuple[Module, ast.FunctionDef] | None:
+        """A module-level function ("pkg.mod.f") or a method ("pkg.mod.Class.m")."""
         origin = self.resolve(origin)
         if not origin:
             return None
         mod, _, name = origin.rpartition(".")
         module = self.modules.get(mod)
-        if module is None or name not in module.functions:
-            return None
-        return module, module.functions[name]
+        if module is not None and name in module.functions:
+            return module, module.functions[name]
+        mod, _, cls = mod.rpartition(".")
+        module = self.modules.get(mod)
+        if module is not None and name in module.methods.get(cls, {}):
+            return module, module.methods[cls][name]
+        return None
+
+    def method_definers(self, name: str) -> int:
+        """How many classes in the repository define a method with this name."""
+        return sum(name in methods for m in self.modules.values() for methods in m.methods.values())
 
     def usage_counts(self) -> Counter[str]:
         """How many times each resolved origin is referenced by name across the repository."""

@@ -161,9 +161,20 @@ Each task stores a `task_patch` against the pinned `commit`; the original code i
 Pilot on boltons (2026-10-23): 48 call sites → 6 candidates → **5 validated tasks**.
 Main rejection reasons: helper has an early return (15), no final `return` (5), too long (5).
 
+Scaling (2026-10-23, after the pilot) — the inliner now also supports:
+- `return H(...)` call sites with **early returns** in `H` (each `return` in `H` returns from `F`;
+  a missing final `return` becomes `return None`), and **procedures** called as statements;
+- **`mod.h(...)`** (function of an imported repo module; the import is dropped if unused) and
+  **`self.h(...)`** (method of the caller's class; rejected if any class in the repo defines a method
+  of that name, since inlining an overridable method would change subclass behaviour);
+- helpers that use names from their own module: the needed imports are added to the caller module
+  (whoever duplicated `H` would have needed them too).
+Candidates across 12 repos rose from ~63 to ~360 (39 cross-module). Repos, pinned commits and
+pytest arguments: `data/repos.json`. `select_tasks.py` keeps every cross-module task and a seeded
+sample of same-module tasks, up to 12 per repo. markdown was dropped (tests need pyyaml and a
+warnings config the harness cannot run).
+
 Known issues / next steps:
 1. **Unparse artifacts** leak hints (dead code from substituted defaults, `ast.unparse` formatting)
-   → LLM paraphrase step, re-validated with the same tests.
-2. **Yield** (~5 tasks/repo) is too low for ~200 tasks → LLM-assisted inlining for helpers with early
-   returns, and choose application-style repos with more cross-module helpers.
-3. Mined tasks (§3.2) not implemented yet.
+   → paraphrase step with an open model, re-validated with the same tests.
+2. Mined tasks (§3.2) not implemented yet.
