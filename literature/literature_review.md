@@ -36,6 +36,15 @@ Summaries are from the official abstracts; read the PDFs before citing specific 
 | **Code Copycat Conundrum: Demystifying Repetition in LLM-based Code Generation** | arXiv 2504.12608 (Apr 2025) | P | Repetition in 19 code LLMs; DeRep mitigation. |
 | Instruction design for LLM refactoring (Fowler-guided prompts) | arXiv 2510.03914 | P | Fowler-grounded instructions let LLMs perform all refactoring types; DeepSeek-V3 48/48 types vs GPT-4o-mini 14. |
 
+### Added from Evgenii's gap analysis (verified 2026-10-23)
+| Paper | Venue | Tier | Key point |
+|-------|-------|------|-----------|
+| **CoRet: Improved Retriever for Code Editing** — Fehr, Teja S, Franceschi, Zappella | **ACL 2025 Short Papers** (main conference, Vol. 2), pp. 775–789 · 10.18653/v1/2025.acl-short.62 | A | Dense retriever using semantics, repo structure and call graph; ≥15 pp recall gain on SWE-bench and Long Code Arena bug localisation. No model release linked on the Anthology page. Candidate inspiration for C2. |
+| **RepoAI: Automated code refactoring through multi-agent LLM orchestration and RAG** — Chondamrongkul et al. | Science of Computer Programming vol. 253, art. 103477 (Aug 2026) · 10.1016/j.scico.2026.103477 (verified via Crossref; abstract not accessible to us) | SE journal | Per the gap analysis: compares retrieval strategies on RefactorBench, 7 models; small effect size. **Closest competitor for "comparing retrieval in refactoring"** — read in full. |
+| **CodeTaste** (listed above as arXiv) | Now **ICML 2026**, PMLR 306, pp. 120544–120572 | ML top venue | Update the citation to the ICML version. |
+
+Lead not yet checked: **RefAgent** (multi-agent refactoring, arXiv 2511.03153, listed in the ICSE 2026 research track).
+
 ### Checked and discarded
 - arXiv 2509.22097 (cited as "ACL 2026 Main") — it is *SecureVibeBench* (secure coding), not refactoring.
 
@@ -48,7 +57,7 @@ Summaries are from the official abstracts; read the PDFs before citing specific 
 → Candidate RQ: *Does repository retrieval (CodeRAG/TSP-style) make LLM refactoring reuse existing code more often, while preserving behavior and following instructions (CodeIF-style)?* Metrics: test pass rate, DIR-style reuse rate, duplication reduction, instruction compliance.
 
 ## 4. Venue-rule status (for Marina)
-- Clearly compliant: CodeRAG (main).
+- Clearly compliant: CodeRAG (EMNLP main), CoRet (ACL main, short paper).
 - Need approval: ReflectCode, RepoExec, DependEval, SeqCoBench (Findings); CodeIF, TSP (Industry).
 - Background only: SWE-Refactor, MANTRA, CodeTaste, More Code Less Reuse (preprints/SE venues); RefactorBench (ICLR — top ML, not IR/NLP/CL).
 - TODO: search ACL 2026 main / EMNLP 2026 / SIGIR 2026 proceedings directly for refactoring or code-reuse papers to strengthen the compliant set.

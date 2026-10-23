@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import argparse
 import ast
+import difflib
 import json
 import shlex
 from collections import defaultdict
@@ -81,8 +82,11 @@ def main(argv: list[str] | None = None) -> None:
                 else:
                     calls = called_origins(index, module_name, new_source, task["caller_qualname"])
                     result = sandbox.check(Path(task["caller_file"]), new_source)
+                    diff = "".join(difflib.unified_diff(
+                        mutated.splitlines(keepends=True), new_source.splitlines(keepends=True),
+                        fromfile=f"a/{task['caller_file']}", tofile=f"b/{task['caller_file']}"))
                     record.update(
-                        applied=True, error=None, **info,
+                        applied=True, error=None, **info, diff=diff,
                         tests_pass=result.passed,
                         reuse_helper=task["helper_qualname"] in calls,
                         repo_calls=sorted(c for c in calls if index.function(c) is not None),

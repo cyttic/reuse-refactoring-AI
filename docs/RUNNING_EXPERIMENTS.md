@@ -78,7 +78,7 @@ bash scripts/run_experiment.sh Qwen/Qwen2.5-Coder-7B-Instruct smoke --limit 1
 ```
 At the end it prints a summary table and `pushed results/smoke`.
 
-**C2. Pilot** — all current tasks × 3 conditions × 2 instructions:
+**C2. Pilot** — all current tasks × 4 conditions × 2 instructions:
 ```bash
 bash scripts/run_experiment.sh Qwen/Qwen2.5-Coder-7B-Instruct qwen7b-pilot
 ```

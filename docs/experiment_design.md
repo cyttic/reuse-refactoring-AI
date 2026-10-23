@@ -41,13 +41,19 @@ Report results separately for repos created after the evaluated models' training
 
 ## 4. Experimental conditions
 
-| ID | Context given to the model | Inspired by |
-|----|----------------------------|-------------|
-| C0 | Target file only | Baseline |
-| C1 | Lexical retrieval (BM25 / grep) over the repo, top-k snippets | "Better Call Grep" (arXiv 2601.23254) |
-| C2 | Dense embedding retrieval, top-k snippets | CodeRAG (EMNLP 2025), ReflectCode (Findings EMNLP 2025) |
-| C3 | Agentic search → read → patch loop | Think-Search-Patch (EMNLP 2025 Industry) |
-| C4 | Oracle: helper `H` given directly | Upper bound |
+All retrieval conditions share the **same base context**: the module's imports plus the target
+function. They differ only in the snippets added, so the helper can reach the model *only through
+retrieval* (revised 2026-10-23 after Evgenii's gap analysis: in the first version the whole file was
+always shown, so same-module helpers — all 5 pilot tasks — leaked into every condition).
+
+| ID | Code name | Context given to the model | Inspired by |
+|----|-----------|----------------------------|-------------|
+| C0 | `none` | Base context only | Baseline |
+| C1 | `bm25` | Base + top-k BM25 snippets from the whole repo (target function excluded) | "Better Call Grep" (arXiv 2601.23254) |
+| C2 | — (todo) | Base + top-k dense-retrieval snippets | CodeRAG (EMNLP 2025), CoRet (ACL 2025 short) |
+| C3 | — (todo) | Agentic search → read → patch loop; log tool calls | Think-Search-Patch (EMNLP 2025 Industry) |
+| C4 | `oracle` | Base + helper among k−1 BM25 distractors (same budget as C1, seeded position) | Upper bound for retrieval |
+| Cf | `file` | Whole module (realistic IDE-like view) | Reference |
 
 Instruction variants (crossed with every condition), following CodeIF (ACL 2025 Industry):
 - **I-generic:** "Refactor this function to reduce duplication."
@@ -73,7 +79,18 @@ Instruction variants (crossed with every condition), following CodeIF (ACL 2025 
 | **Retrieval recall@k** | `H` appears in the top-k retrieved snippets (C1–C3) | Logged retrieval |
 | Cost | Tokens / latency per task | Logs |
 
-RQ3 attribution: for each failed task in C1–C3, label **not-retrieved** (`H` ∉ top-k) vs. **retrieved-but-ignored** (`H` ∈ top-k, not called).
+RQ3 attribution — the **reuse funnel**, the main analysis (`summarize.py`): every task is lost at
+exactly one stage — **not in context** (`H` ∉ context) → **ignored** (`H` in context, not called) →
+**broken** (called, tests fail) → success. Also reported: Recall@k and MRR of `H` for BM25, and reuse
+of `H` *without* it in context (prior knowledge / memorization). All prompts (`prompts.jsonl.gz`)
+and applied diffs (`metrics.jsonl`) are stored for manual analysis.
+
+Interpretation guide (from the gap analysis): high recall + low reuse → the model's decision is the
+bottleneck; C4 ≫ C1 → retrieval is the bottleneck; C4 also weak → applying the helper is the
+bottleneck; reuse but failing tests → helper called incorrectly.
+
+Manual check: a sample of "not reused" outputs is labelled by hand, since a model may correctly
+reuse a *different* equivalent helper (`repo_calls` lists all repository functions called).
 
 ## 7. Scale and budget
 
@@ -93,6 +110,14 @@ API cost to be measured on the pilot (1 repo, 1 model) before scaling.
 - **Contamination:** popular repos seen in training → post-cutoff repos reported separately.
 - **Test-suite weakness:** passing tests ≠ equivalence → only repos with good coverage; inspect a manual sample.
 - **Metric validity:** an edit may reuse a *different* valid helper → manual review of a sample of "non-reuse" outcomes.
+
+## 9b. Positioning (after the gap analysis)
+
+`literature/Code_Reuse_Refactoring_Research_Gap_Analysis.md` (Evgenii) shows that "LLM + RAG +
+refactoring" (MANTRA, RepoAI), dependency reuse (RepoExec) and code-editing retrieval (CoRet) are
+already studied. Our claim is therefore narrower: **locate where reuse is lost — retrieval, the
+model's decision, or the edit — under a controlled context budget.** Novelty is not claimed until the
+full texts of RepoExec and RepoAI have been read.
 
 ## 10. Existing benchmarks — reuse or not?
 

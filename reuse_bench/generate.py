@@ -8,6 +8,7 @@ Resumable: prompts already present in --out are skipped.
 from __future__ import annotations
 
 import argparse
+import gzip
 import hashlib
 import json
 import time
@@ -126,9 +127,14 @@ def main(argv: list[str] | None = None) -> None:
         chunk = jobs[start: start + args.chunk]
         t0 = time.time()
         texts = backend.generate([messages for _, messages in chunk])
+        seconds = round((time.time() - t0) / len(chunk), 2)
         with args.out.open("a", encoding="utf-8") as fh:
             for (record, _), text in zip(chunk, texts):
-                fh.write(json.dumps({**record, "output": text}) + "\n")
+                fh.write(json.dumps({**record, "output": text, "seconds_per_prompt": seconds}) + "\n")
+        # Full prompts are large; keep them compressed next to the generations (appending gzip members is valid).
+        with gzip.open(args.out.with_name("prompts.jsonl.gz"), "at", encoding="utf-8") as fh:
+            for record, messages in chunk:
+                fh.write(json.dumps({"prompt_sha256": record["prompt_sha256"], "messages": messages}) + "\n")
         print(f"  {start + len(chunk)}/{len(jobs)} prompts ({time.time() - t0:.0f}s for this chunk)")
 
 

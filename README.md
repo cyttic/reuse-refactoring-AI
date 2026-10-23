@@ -9,7 +9,7 @@ literature: [literature/literature_review.md](literature/literature_review.md).
 | Path | What |
 |------|------|
 | `reuse_bench/build.py` | Builds tasks: inlines a helper `H` into its caller `F`, keeps it if tests cover and still pass |
-| `reuse_bench/generate.py` | GPU stage: prompts × conditions (`file`, `bm25`, `oracle`) × instructions (`generic`, `reuse`) via vLLM |
+| `reuse_bench/generate.py` | GPU stage: prompts × conditions (`none`, `bm25`, `oracle`, `file`) × instructions (`generic`, `reuse`) via vLLM |
 | `reuse_bench/evaluate.py` | CPU stage: applies each output, runs the repo's tests, checks whether `H` is called |
 | `reuse_bench/summarize.py` | Markdown table per model / condition / instruction |
 | `data/tasks/*.jsonl` | Benchmark tasks (patches against pinned commits) |
