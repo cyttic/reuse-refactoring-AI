@@ -37,14 +37,21 @@ class HFBackend:
         import torch
         from transformers import AutoModelForCausalLM, AutoTokenizer
         self.torch = torch
+        print(f"loading {args.model} (downloads on first use) ...")
         self.tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
         self.model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype="auto", device_map="auto",
                                                           trust_remote_code=True)
+        offloaded = {d for d in getattr(self.model, "hf_device_map", {}).values() if d in ("cpu", "disk")}
+        if offloaded:
+            print(f"WARNING: part of the model is on {offloaded}, generation will be very slow. "
+                  "Free GPU memory (nvidia-smi) or use a smaller/quantized model.")
+        print(f"model loaded on {self.model.device}")
         self.args = args
 
     def generate(self, conversations: list[list[dict]]) -> list[str]:
         texts = []
-        for messages in conversations:
+        for i, messages in enumerate(conversations, 1):
+            t0 = time.time()
             ids = self.tok.apply_chat_template(messages, add_generation_prompt=True,
                                                return_tensors="pt").to(self.model.device)
             sample = self.args.temperature > 0
@@ -52,6 +59,8 @@ class HFBackend:
                 out = self.model.generate(ids, max_new_tokens=self.args.max_tokens, do_sample=sample,
                                           temperature=self.args.temperature if sample else None)
             texts.append(self.tok.decode(out[0, ids.shape[1]:], skip_special_tokens=True))
+            print(f"    prompt {i}/{len(conversations)}: {ids.shape[1]} tokens in, "
+                  f"{out.shape[1] - ids.shape[1]} out, {time.time() - t0:.0f}s")
         return texts
 
 

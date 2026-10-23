@@ -5,6 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
+export PYTHONUNBUFFERED=1   # otherwise progress lines sit in a buffer when piped through tee
 
 MODEL=${1:?usage: $0 MODEL RUN_NAME [extra args for reuse_bench.generate]}
 RUN=${2:?usage: $0 MODEL RUN_NAME [extra args for reuse_bench.generate]}
