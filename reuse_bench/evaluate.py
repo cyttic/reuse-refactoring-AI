@@ -17,6 +17,7 @@ from .edit import EditError, apply_edit
 from .index import Module, RepoIndex, collect_bindings
 from .patching import apply_patch
 from .prompting import find_function, load_tasks
+from .retrieval import equivalent_helpers, repo_snippets
 from .validate import Sandbox
 
 
@@ -63,6 +64,10 @@ def main(argv: list[str] | None = None) -> None:
     for repo, gens in by_repo.items():
         repo_root = args.repos_dir / repo
         index = RepoIndex.build(repo_root)
+        snippets = repo_snippets(index)
+        # Near-copies of the target helper elsewhere in the repo also count as reusing it.
+        equivalents = {t["id"]: equivalent_helpers(snippets, t["helper_qualname"])
+                       for t in tasks.values() if t["repo"] == repo}
         pytest_args = shlex.split(manifest[repo]["pytest_args"])
         print(f"{repo}: evaluating {len(gens)} generations")
         with Sandbox(repo_root, pytest_args, args.timeout) as sandbox, args.out.open("a") as fh:
@@ -78,9 +83,15 @@ def main(argv: list[str] | None = None) -> None:
                 try:
                     new_source, info = apply_edit(mutated, task["caller_qualname"], gen["output"])
                 except EditError as exc:
-                    record.update(applied=False, error=str(exc), tests_pass=False, reuse_helper=False)
+                    record.update(applied=False, error=str(exc), tests_pass=False, reuse_helper=False,
+                                  reuse_any=False, compliant=False)
                 else:
                     calls = called_origins(index, module_name, new_source, task["caller_qualname"])
+                    before = called_origins(index, module_name, mutated, task["caller_qualname"])
+                    # Repository functions the model started calling: catches reuse of an equivalent
+                    # helper other than the designated one (e.g. a duplicate in another module).
+                    new_repo_calls = sorted(c for c in calls - before if index.function(c) is not None)
+                    accepted = {task["helper_qualname"], *equivalents[task["id"]]}
                     result = sandbox.check(Path(task["caller_file"]), new_source)
                     diff = "".join(difflib.unified_diff(
                         mutated.splitlines(keepends=True), new_source.splitlines(keepends=True),
@@ -88,8 +99,11 @@ def main(argv: list[str] | None = None) -> None:
                     record.update(
                         applied=True, error=None, **info, diff=diff,
                         tests_pass=result.passed,
-                        reuse_helper=task["helper_qualname"] in calls,
+                        reuse_helper=bool(accepted & calls),
+                        helper_equivalents=equivalents[task["id"]],
                         repo_calls=sorted(c for c in calls if index.function(c) is not None),
+                        new_repo_calls=new_repo_calls,
+                        reuse_any=bool(accepted & calls) or bool(new_repo_calls),
                         unchanged=new_source == mutated,
                     )
                 fh.write(json.dumps(record) + "\n")

@@ -34,11 +34,15 @@ def summarize(rows: list[dict]) -> str:
         rs = groups[key]
         n = len(rs)
         reused = [r for r in rs if r["reuse_helper"]]
+        valid = [r for r in rs if r["tests_pass"] and r.get("compliant")]
         overall.append([*key, str(n),
                         pct(sum(r["applied"] for r in rs), n),
                         pct(sum(r["tests_pass"] for r in rs), n),
+                        pct(sum(bool(r.get("compliant")) for r in rs), n),
+                        pct(len(valid), n),
                         pct(len(reused), n),
-                        pct(sum(r["tests_pass"] for r in reused), n),
+                        pct(sum(bool(r.get("reuse_any")) for r in rs), n),
+                        pct(sum(bool(r["reuse_helper"]) for r in valid), n),
                         pct(sum(bool(r.get("new_functions")) for r in rs), n)])
         in_ctx = [r for r in rs if r["helper_in_context"]]
         called = [r for r in in_ctx if r["reuse_helper"]]
@@ -49,6 +53,7 @@ def summarize(rows: list[dict]) -> str:
                        # where the successes were lost, as shares of all n tasks
                        str(n - len(in_ctx)),
                        str(len(in_ctx) - len(called)),
+                       str(sum(bool(r.get("reuse_any")) for r in in_ctx if not r["reuse_helper"])),
                        str(len(called) - sum(r["tests_pass"] for r in called)),
                        str(sum(r["reuse_helper"] for r in rs if not r["helper_in_context"]))])
 
@@ -62,14 +67,18 @@ def summarize(rows: list[dict]) -> str:
                               f"{sum(1 / rk for rk in ranks if rk) / len(rs):.2f}"])
 
     out = ["## Overall\n",
-           table(["model", "condition", "instruction", "n", "applied", "tests pass", "reuses helper",
-                  "reuse & pass", "defines new helper"], overall),
+           "*compliant*: signature kept and no existing code redefined (violations are dropped before "
+           "testing); *valid*: tests pass and compliant; *reuses any*: calls the target helper or another "
+           "repository function the input did not call (check these by hand).\n",
+           table(["model", "condition", "instruction", "n", "applied", "tests pass", "compliant", "valid",
+                  "reuses helper", "reuses any", "valid & reuses helper", "defines new helper"], overall),
            "\n## Reuse funnel\n",
            "Stages: helper in context → helper called (given in context) → tests pass (given called). "
            "Loss columns count tasks lost at each stage; the last column counts reuse without the "
            "helper in context (e.g. from training data).\n",
            table(["model", "condition", "instruction", "helper in context", "called (of in context)",
-                  "pass (of called)", "lost: not in context", "lost: ignored", "lost: broken",
+                  "pass (of called)", "lost: not in context", "lost: ignored", "…of which reused another fn",
+                  "lost: broken",
                   "called without context"], funnel)]
     if retrieval:
         out += ["\n## Retrieval of the helper (BM25)\n",

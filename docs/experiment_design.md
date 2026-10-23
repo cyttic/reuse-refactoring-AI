@@ -89,6 +89,17 @@ Interpretation guide (from the gap analysis): high recall + low reuse → the mo
 bottleneck; C4 ≫ C1 → retrieval is the bottleneck; C4 also weak → applying the helper is the
 bottleneck; reuse but failing tests → helper called incorrectly.
 
+Changes after the smoke run (2026-10-23, 1 task, Qwen2.5-Coder-7B):
+- **Compliance is enforced, not just measured.** Model output may only add *new* names. Redefinitions
+  of existing functions/variables, imports that re-bind existing names and stray module-level statements
+  are dropped before testing and listed in `dropped`; `compliant` = signature kept and nothing dropped;
+  **valid** = tests pass and compliant. (The smoke run showed redefinitions such as a stub `_args2cmd`
+  that passed the tests only because the original definition came later in the file.)
+- **Equivalent helpers.** Near-copies of `H` elsewhere in the repo (body-token weighted Jaccard ≥ 0.8,
+  e.g. `strutils.args2sh` ≡ `ecoutils._args2sh` in boltons) count as reusing `H`.
+- **`reuses any`** = calls `H`, an equivalent, or any repository function the input did not call; these
+  extra cases are reviewed by hand.
+
 Manual check: a sample of "not reused" outputs is labelled by hand, since a model may correctly
 reuse a *different* equivalent helper (`repo_calls` lists all repository functions called).
 

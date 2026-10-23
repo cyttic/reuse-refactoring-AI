@@ -44,6 +44,31 @@ def repo_snippets(index: RepoIndex, exclude_path: str | None = None) -> list[Sni
     return snippets
 
 
+def _body_tokens(source: str) -> Counter[str]:
+    """Tokens of a function body without its docstring and def line."""
+    fn = ast.parse(source).body[0]
+    body = fn.body[1:] if (fn.body and isinstance(fn.body[0], ast.Expr)
+                           and isinstance(fn.body[0].value, ast.Constant)) else fn.body
+    return Counter(tokenize(ast.unparse(ast.Module(body=body, type_ignores=[]))))
+
+
+def equivalent_helpers(snippets: list[Snippet], origin: str, threshold: float = 0.8) -> list[str]:
+    """Other repository functions whose body is a near-copy of `origin` (weighted Jaccard >= threshold)."""
+    by_origin = {s.origin: s for s in snippets}
+    if origin not in by_origin:
+        return []
+    target = _body_tokens(by_origin[origin].source)
+    found = []
+    for s in snippets:
+        if s.origin == origin:
+            continue
+        other = _body_tokens(s.source)
+        union = sum((target | other).values())
+        if union and sum((target & other).values()) / union >= threshold:
+            found.append(s.origin)
+    return found
+
+
 class BM25:
     def __init__(self, docs: list[list[str]], k1: float = 1.5, b: float = 0.75):
         self.k1, self.b = k1, b
