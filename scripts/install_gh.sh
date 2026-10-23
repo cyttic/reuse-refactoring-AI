@@ -5,8 +5,10 @@ set -euo pipefail
 if command -v gh >/dev/null 2>&1 || [ -x "$HOME/.local/bin/gh" ]; then
     echo "gh already installed"; exit 0
 fi
-VERSION=$(curl -fsSL https://api.github.com/repos/cli/cli/releases/latest \
-    | python3 -c 'import json, sys; print(json.load(sys.stdin)["tag_name"].lstrip("v"))')
+# The "latest" release page redirects to .../tag/v<version>; no API call or JSON parsing needed.
+LATEST=$(curl -fsSLI -o /dev/null -w '%{url_effective}' https://github.com/cli/cli/releases/latest)
+VERSION=${LATEST##*/v}
+[ -n "$VERSION" ] && [ "$VERSION" != "$LATEST" ] || { echo "could not determine gh version from $LATEST"; exit 1; }
 case "$(uname -m)" in
     x86_64) ARCH=amd64 ;;
     aarch64|arm64) ARCH=arm64 ;;

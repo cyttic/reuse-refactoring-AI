@@ -5,6 +5,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
 
+command -v gh >/dev/null 2>&1 || bash scripts/install_gh.sh
 gh auth status >/dev/null 2>&1 || gh auth login --hostname github.com --git-protocol https --web
 gh auth setup-git   # lets `git push` use the gh login
 
