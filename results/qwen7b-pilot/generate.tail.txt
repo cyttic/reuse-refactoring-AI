@@ -1,0 +1,45 @@
+5 tasks, 40 prompts to generate (0 already done)
+loading Qwen/Qwen2.5-Coder-7B-Instruct (downloads on first use) ...
+Loading weights:   0%|          | 0/339 [00:00<?, ?it/s]Loading weights:   3%|▎         | 10/339 [00:00<00:03, 99.27it/s]Loading weights:  19%|█▉        | 65/339 [00:00<00:00, 355.89it/s]Loading weights:  35%|███▍      | 118/339 [00:00<00:00, 432.75it/s]Loading weights:  51%|█████     | 173/339 [00:00<00:00, 471.45it/s]Loading weights:  68%|██████▊   | 232/339 [00:00<00:00, 504.29it/s]Loading weights:  83%|████████▎ | 283/339 [00:00<00:00, 504.16it/s]Loading weights: 100%|██████████| 339/339 [00:00<00:00, 478.79it/s]
+model loaded on cuda:0
+    prompt 1/40: 324 tokens in, 277 out, 8s
+    prompt 2/40: 342 tokens in, 345 out, 9s
+    prompt 3/40: 1483 tokens in, 154 out, 4s
+    prompt 4/40: 1501 tokens in, 120 out, 3s
+    prompt 5/40: 1483 tokens in, 152 out, 4s
+    prompt 6/40: 1501 tokens in, 68 out, 2s
+    prompt 7/40: 3825 tokens in, 1501 out, 40s
+    prompt 8/40: 3843 tokens in, 144 out, 5s
+    prompt 9/40: 425 tokens in, 382 out, 10s
+    prompt 10/40: 443 tokens in, 392 out, 10s
+    prompt 11/40: 1996 tokens in, 1083 out, 28s
+    prompt 12/40: 2014 tokens in, 189 out, 5s
+    prompt 13/40: 1996 tokens in, 415 out, 11s
+    prompt 14/40: 2014 tokens in, 314 out, 9s
+    prompt 15/40: 3284 tokens in, 1738 out, 47s
+    prompt 16/40: 3302 tokens in, 1869 out, 50s
+    prompt 17/40: 619 tokens in, 289 out, 7s
+    prompt 18/40: 637 tokens in, 559 out, 14s
+    prompt 19/40: 3023 tokens in, 440 out, 12s
+    prompt 20/40: 3041 tokens in, 565 out, 15s
+    prompt 21/40: 2234 tokens in, 456 out, 12s
+    prompt 22/40: 2252 tokens in, 528 out, 14s
+    prompt 23/40: 7351 tokens in, 611 out, 18s
+    prompt 24/40: 7369 tokens in, 517 out, 16s
+    prompt 25/40: 242 tokens in, 176 out, 5s
+    prompt 26/40: 260 tokens in, 292 out, 7s
+    prompt 27/40: 1307 tokens in, 140 out, 4s
+    prompt 28/40: 1325 tokens in, 51 out, 2s
+    prompt 29/40: 1307 tokens in, 241 out, 6s
+    prompt 30/40: 1325 tokens in, 51 out, 2s
+    prompt 31/40: 4956 tokens in, 208 out, 7s
+    prompt 32/40: 4974 tokens in, 319 out, 9s
+    prompt 33/40: 236 tokens in, 216 out, 6s
+    prompt 34/40: 254 tokens in, 142 out, 4s
+    prompt 35/40: 1567 tokens in, 133 out, 4s
+    prompt 36/40: 1585 tokens in, 105 out, 3s
+    prompt 37/40: 1567 tokens in, 68 out, 2s
+    prompt 38/40: 1585 tokens in, 132 out, 4s
+    prompt 39/40: 4909 tokens in, 131 out, 4s
+    prompt 40/40: 4927 tokens in, 380 out, 11s
+  40/40 prompts (433s for this chunk)

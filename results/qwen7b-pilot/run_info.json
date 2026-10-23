@@ -1,0 +1,8 @@
+{
+  "run": "qwen7b-pilot",
+  "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+  "extra_args": "--backend hf",
+  "gpu": "NVIDIA RTX A5000, 24564 MiB",
+  "code_commit": "e6a0e86dae2f7a0a0b1608a05608bc5dce9ebc18",
+  "started": "2026-10-23 19:19:00"
+}
