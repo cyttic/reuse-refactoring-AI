@@ -1,0 +1,13 @@
+1 tasks, 8 prompts to generate (0 already done)
+loading Qwen/Qwen2.5-Coder-7B-Instruct (downloads on first use) ...
+Loading weights:   0%|          | 0/339 [00:00<?, ?it/s]Loading weights:   5%|▍         | 16/339 [00:00<00:02, 153.95it/s]Loading weights:  19%|█▉        | 66/339 [00:00<00:00, 345.19it/s]Loading weights:  37%|███▋      | 124/339 [00:00<00:00, 443.88it/s]Loading weights:  51%|█████▏    | 174/339 [00:00<00:00, 460.87it/s]Loading weights:  69%|██████▊   | 233/339 [00:00<00:00, 499.89it/s]Loading weights:  86%|████████▌ | 292/339 [00:00<00:00, 521.31it/s]Loading weights: 100%|██████████| 339/339 [00:00<00:00, 480.72it/s]
+model loaded on cuda:0
+    prompt 1/8: 324 tokens in, 277 out, 11s
+    prompt 2/8: 342 tokens in, 345 out, 9s
+    prompt 3/8: 1483 tokens in, 154 out, 4s
+    prompt 4/8: 1501 tokens in, 120 out, 3s
+    prompt 5/8: 1483 tokens in, 152 out, 4s
+    prompt 6/8: 1501 tokens in, 68 out, 2s
+    prompt 7/8: 3825 tokens in, 1501 out, 40s
+    prompt 8/8: 3843 tokens in, 144 out, 5s
+  8/8 prompts (78s for this chunk)

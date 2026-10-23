@@ -1,0 +1,9 @@
+boltons: evaluating 8 generations
+  pass reuse=False none   generic boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
+  pass reuse=False none   reuse   boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
+  pass reuse=False bm25   generic boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
+  FAIL reuse=False bm25   reuse   boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
+  pass reuse=False oracle generic boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
+  pass reuse=False oracle reuse   boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
+  pass reuse=False file   generic boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
+  pass reuse=False file   reuse   boltons::boltons.ecoutils._escape_shell_args::boltons.ecoutils._args2sh
