@@ -65,31 +65,57 @@ def _import_line(tree: ast.Module, before: int) -> int:
     return line
 
 
-def apply_edit(source: str, qualname: str, output: str) -> tuple[str, dict]:
+def _is_self_import(node: ast.stmt, module_name: str | None) -> bool:
+    """`from <this module> import x` inside the module itself refers to the same objects."""
+    if not module_name or not isinstance(node, ast.ImportFrom):
+        return False
+    return (node.level == 0 and node.module == module_name) or \
+        (node.level == 1 and node.module == module_name.rpartition(".")[2])
+
+
+def apply_edit(source: str, qualname: str, output: str, module_name: str | None = None) -> tuple[str, dict]:
     name = qualname.rpartition(".")[2]
+    cls_name = qualname.rpartition(".")[0]
     code = textwrap.dedent(extract_code(output, name))
     try:
         block = ast.parse(code)
     except SyntaxError as exc:
         raise EditError("output does not parse") from exc
-    defs = [n for n in block.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name]
+    is_fn = lambda n: isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name
+    defs = [n for n in block.body if is_fn(n)]
+    wrapper = None
+    if not defs and cls_name:
+        # Methods are often answered inside their class (`class Table: ... def method`), as in the prompt.
+        wrapper = next((n for n in block.body if isinstance(n, ast.ClassDef) and n.name == cls_name), None)
+        defs = [n for n in wrapper.body if is_fn(n)] if wrapper else []
     if not defs:
         raise EditError("output does not define the function")
     new_fn = defs[-1]
     imports = [n for n in block.body if isinstance(n, (ast.Import, ast.ImportFrom))]
-    extras = [n for n in block.body if n not in defs and n not in imports]
+    extras = [n for n in block.body if n not in defs and n not in imports and n is not wrapper]
 
     tree = ast.parse(source)
     target = find_function(tree, qualname)
     # The model may only add *new* names: redefinitions, re-bound imports and other module-level
     # statements would silently change code outside the target, so they are dropped and reported.
+    # Verbatim copies of existing code (models often echo their context) change nothing and are skipped.
+    existing_dumps = {ast.dump(n) for n in tree.body}
     module_bound: dict[str, set[str]] = {}
     for node in tree.body:
         for bound, origin in _bound(node):
             module_bound.setdefault(bound, set()).add(origin)
     dropped: list[str] = []
+    if wrapper:
+        cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls_name)
+        cls_dumps = {ast.dump(n) for n in cls.body}
+        for member in wrapper.body:
+            placeholder = isinstance(member, ast.Expr) and isinstance(member.value, ast.Constant)
+            if member is not new_fn and not placeholder and ast.dump(member) not in cls_dumps:
+                dropped.append(f"redefines {cls_name}.{getattr(member, 'name', type(member).__name__)}")
     kept_imports = []
     for node in imports:
+        if ast.dump(node) in existing_dumps or _is_self_import(node, module_name):
+            continue
         keep = []
         for alias, (bound, origin) in zip(node.names, _bound(node)):
             if bound not in module_bound:
@@ -102,6 +128,8 @@ def apply_edit(source: str, qualname: str, output: str) -> tuple[str, dict]:
             kept_imports.append(node)
     kept_extras = []
     for node in extras:
+        if ast.dump(node) in existing_dumps:
+            continue
         names = [b for b, _ in _bound(node)]
         if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef, ast.Assign, ast.AnnAssign)) \
                 and names and not any(n in module_bound for n in names):
@@ -122,7 +150,8 @@ def apply_edit(source: str, qualname: str, output: str) -> tuple[str, dict]:
     # (start, end, replacement) on 0-based line ranges, applied bottom-up.
     ops = []
     if is_method:
-        ops.append((_first_line(target) - 1, target.end_lineno, textwrap.indent(text([new_fn]), indent)))
+        method = textwrap.dedent(text([new_fn]))
+        ops.append((_first_line(target) - 1, target.end_lineno, textwrap.indent(method, indent)))
         cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == qualname.rpartition(".")[0])
         if extras:
             ops.append((_first_line(cls) - 1, _first_line(cls) - 1, text(extras) + "\n\n"))
@@ -148,6 +177,8 @@ def apply_edit(source: str, qualname: str, output: str) -> tuple[str, dict]:
         "added_imports": added,
         "signature_kept": ast.dump(target.args) == ast.dump(new_fn.args),
         "dropped": list(dict.fromkeys(dropped)),
+        "imports_from": [(n.module, a.name) for n in block.body
+                         if isinstance(n, ast.ImportFrom) and n.level == 0 and n.module for a in n.names],
         "compliant": ast.dump(target.args) == ast.dump(new_fn.args) and not dropped,
         "lines_before": target.end_lineno - _first_line(target) + 1,
         "lines_after": new_fn.end_lineno - _first_line(new_fn) + 1,

@@ -39,6 +39,20 @@ def called_origins(index: RepoIndex, module_name: str, source: str, qualname: st
     return origins
 
 
+def hallucinated_imports(index: RepoIndex, imports_from: list[tuple[str, str]]) -> list[str]:
+    """`from <repo module> import name` where the module or the name does not exist in the repository."""
+    packages = {name.split(".")[0] for name in index.modules}
+    found = []
+    for module, name in imports_from:
+        if module.split(".")[0] not in packages:
+            continue    # stdlib / third party: not checked
+        exists = module in index.modules and (name in index.modules[module].bindings
+                                              or f"{module}.{name}" in index.modules)
+        if not exists:
+            found.append(f"{module}.{name}")
+    return found
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--tasks", type=Path, nargs="+", required=True)
@@ -81,7 +95,7 @@ def main(argv: list[str] | None = None) -> None:
                                               "helper_in_context", "helper_rank", "file_truncated")}
                 record.update(repo=repo, helper_same_module=task["helper_same_module"])
                 try:
-                    new_source, info = apply_edit(mutated, task["caller_qualname"], gen["output"])
+                    new_source, info = apply_edit(mutated, task["caller_qualname"], gen["output"], module_name)
                 except EditError as exc:
                     record.update(applied=False, error=str(exc), tests_pass=False, reuse_helper=False,
                                   reuse_any=False, compliant=False)
@@ -92,6 +106,7 @@ def main(argv: list[str] | None = None) -> None:
                     # helper other than the designated one (e.g. a duplicate in another module).
                     new_repo_calls = sorted(c for c in calls - before if index.function(c) is not None)
                     accepted = {task["helper_qualname"], *equivalents[task["id"]]}
+                    imports_from = info.pop("imports_from")
                     result = sandbox.check(Path(task["caller_file"]), new_source)
                     diff = "".join(difflib.unified_diff(
                         mutated.splitlines(keepends=True), new_source.splitlines(keepends=True),
@@ -99,10 +114,12 @@ def main(argv: list[str] | None = None) -> None:
                     record.update(
                         applied=True, error=None, **info, diff=diff,
                         tests_pass=result.passed,
+                        test_output=None if result.passed else result.output[-800:],
                         reuse_helper=bool(accepted & calls),
                         helper_equivalents=equivalents[task["id"]],
                         repo_calls=sorted(c for c in calls if index.function(c) is not None),
                         new_repo_calls=new_repo_calls,
+                        hallucinated_imports=hallucinated_imports(index, imports_from),
                         reuse_any=bool(accepted & calls) or bool(new_repo_calls),
                         unchanged=new_source == mutated,
                     )

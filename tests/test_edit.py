@@ -53,6 +53,29 @@ def test_redefinitions_and_rebinding_imports_are_dropped_and_reported():
     assert new.count("class Box") == 1
 
 
+def test_method_answered_inside_its_class():
+    output = ("```python\nclass Box:\n    ...\n\n    def method(self, x):\n        return x + x\n```")
+    new, info = apply_edit(SOURCE, "Box.method", output)
+    assert "class Box:\n    def method(self, x):\n        return x + x\n" in new
+    assert info["compliant"]
+
+
+def test_method_wrapper_with_changed_sibling_is_reported():
+    output = ("```python\nclass Box:\n    def other(self):\n        return 1\n\n"
+              "    def method(self, x):\n        return x + x\n```")
+    _, info = apply_edit(SOURCE, "Box.method", output)
+    assert info["dropped"] == ["redefines Box.other"]
+
+
+def test_verbatim_echo_and_self_import_are_not_violations():
+    output = ("```python\nimport os\nfrom pkg.m import Box\n\n"
+              "class Box:\n    def method(self, x):\n        return x * 2\n\n"
+              "def target(x):\n    return x\n```")
+    new, info = apply_edit(SOURCE, "target", output, module_name="pkg.m")
+    assert info["dropped"] == [] and info["compliant"]
+    assert new.count("class Box") == 1 and "from pkg.m import" not in new
+
+
 def test_unclosed_code_block_is_accepted():
     new, _ = apply_edit(SOURCE, "target", "```python\ndef target(x):\n    return x.strip()\n")
     assert "    return x.strip()\n" in new and "y.lower()" not in new

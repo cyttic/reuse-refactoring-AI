@@ -43,7 +43,8 @@ def summarize(rows: list[dict]) -> str:
                         pct(len(reused), n),
                         pct(sum(bool(r.get("reuse_any")) for r in rs), n),
                         pct(sum(bool(r["reuse_helper"]) for r in valid), n),
-                        pct(sum(bool(r.get("new_functions")) for r in rs), n)])
+                        pct(sum(bool(r.get("new_functions")) for r in rs), n),
+                        pct(sum(bool(r.get("hallucinated_imports")) for r in rs), n)])
         in_ctx = [r for r in rs if r["helper_in_context"]]
         called = [r for r in in_ctx if r["reuse_helper"]]
         funnel.append([*key,
@@ -71,7 +72,8 @@ def summarize(rows: list[dict]) -> str:
            "testing); *valid*: tests pass and compliant; *reuses any*: calls the target helper or another "
            "repository function the input did not call (check these by hand).\n",
            table(["model", "condition", "instruction", "n", "applied", "tests pass", "compliant", "valid",
-                  "reuses helper", "reuses any", "valid & reuses helper", "defines new helper"], overall),
+                  "reuses helper", "reuses any", "valid & reuses helper", "defines new helper",
+                  "hallucinated import"], overall),
            "\n## Reuse funnel\n",
            "Stages: helper in context → helper called (given in context) → tests pass (given called). "
            "Loss columns count tasks lost at each stage; the last column counts reuse without the "
