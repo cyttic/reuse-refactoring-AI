@@ -1,0 +1,7 @@
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+data/repos/
+.idea/workspace.xml
+results/**/*.log

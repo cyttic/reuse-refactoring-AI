@@ -1,0 +1,7 @@
+{
+  "boltons": {
+    "url": "https://github.com/mahmoud/boltons",
+    "commit": "4e5faa3d7e4008d89e0d8bf1ea87b6d9a061a16d",
+    "pytest_args": "-x -q -p no:cacheprovider tests"
+  }
+}
