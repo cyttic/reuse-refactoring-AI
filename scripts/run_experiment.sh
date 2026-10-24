@@ -24,8 +24,17 @@ path, model, run, extra = sys.argv[1:]
 gpu = subprocess.run(["nvidia-smi", "--query-gpu=name,memory.total", "--format=csv,noheader"],
                      capture_output=True, text=True).stdout.strip()
 commit = subprocess.run(["git", "rev-parse", "HEAD"], capture_output=True, text=True).stdout.strip()
-json.dump({"run": run, "model": model, "extra_args": extra, "gpu": gpu, "code_commit": commit,
-           "started": time.strftime("%Y-%m-%d %H:%M:%S")}, open(path, "w"), indent=2)
+info = {"run": run, "model": model, "extra_args": extra, "gpu": gpu, "code_commit": commit,
+        "started": time.strftime("%Y-%m-%d %H:%M:%S")}
+try:    # resuming / extending a run: keep the first run's info, list later ones under "continued"
+    first = json.load(open(path))
+except (OSError, ValueError):
+    first = None
+if first:
+    if first["model"] != model:
+        sys.exit(f"ERROR: {path} belongs to {first['model']}; use a new run name for {model}")
+    info = {**first, "continued": first.get("continued", []) + [info]}
+json.dump(info, open(path, "w"), indent=2)
 EOF
 
 $PY -m reuse_bench.generate --tasks data/tasks/*.jsonl --model "$MODEL" \

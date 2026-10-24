@@ -54,6 +54,7 @@ always shown, so same-module helpers — all 5 pilot tasks — leaked into every
 | C3 | — (todo) | Agentic search → read → patch loop; log tool calls | Think-Search-Patch (EMNLP 2025 Industry) |
 | C4 | `oracle` | Base + helper among k−1 BM25 distractors (same budget as C1, seeded position) | Upper bound for retrieval |
 | Cf | `file` | Whole module (realistic IDE-like view) | Reference |
+| C4f / C4l | `oracle_first` / `oracle_last` | Same snippets as C4, helper at rank 1 / rank k (position ablation, opt-in) | Lost-in-the-middle check |
 
 Instruction variants (crossed with every condition), following CodeIF (ACL 2025 Industry):
 - **I-generic:** "Refactor this function to reduce duplication."
@@ -197,6 +198,7 @@ during evaluation; the last 23 outputs were evaluated locally.
 - Whole-module context reuses less than BM25 snippets (18–22% vs 21–47%).
 - **Snippet position** may matter: on the 98 tasks where BM25 retrieves the helper, DeepSeek reuses it
   more with BM25 (helper mostly at rank 1) than with the oracle (seeded position): 57 vs 45 (reuse
-  instruction). Qwen shows the opposite (49 vs 54). Next: oracle-first / oracle-last ablation.
+  instruction). Qwen shows the opposite (49 vs 54). Tested with the `oracle_first` / `oracle_last` ablation
+  (same snippets as `oracle`, only the helper's position changes).
 - DeepSeek often renames the target function (“output does not define the function”, 61 outputs) —
   counted as not applied.

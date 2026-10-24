@@ -53,3 +53,13 @@ def test_original_target_function_is_never_retrieved(tmp_path):
     origins = [s.origin for s in ctx.retrieve(k=10)]
     assert "pkg.m.make_key" not in origins       # the original still calls the helper
     assert "pkg.m.normalize" in origins
+
+
+def test_position_ablation_moves_only_the_helper(tmp_path):
+    ctx = context(tmp_path)
+    random_order = ctx.oracle(k=2)
+    first, last = ctx.oracle(k=2, position="first"), ctx.oracle(k=2, position="last")
+    assert first[0].origin == last[-1].origin == "pkg.m.normalize"
+    assert {s.origin for s in first} == {s.origin for s in last} == {s.origin for s in random_order}
+    _, meta = build_prompt(ctx, "oracle_last", "generic", k=2, max_file_chars=10_000)
+    assert meta["helper_rank"] == 2 and meta["helper_in_context"]

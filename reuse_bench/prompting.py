@@ -25,6 +25,8 @@ INSTRUCTIONS = {
 }
 # none = C0, bm25 = C1, oracle = C4 (helper among k-1 BM25 distractors); dense (C2) and agentic (C3) come later
 CONDITIONS = ("none", "bm25", "oracle", "file")
+# Position ablation (opt-in via --conditions): the oracle snippets with the helper first or last.
+POSITION_CONDITIONS = ("oracle_first", "oracle_last")
 
 
 def load_tasks(paths: list[Path]) -> list[dict]:
@@ -65,11 +67,13 @@ class TaskContext:
     def retrieve(self, k: int) -> list[Snippet]:
         return [self.snippets[i] for i in self._ranking()[:k]]
 
-    def oracle(self, k: int) -> list[Snippet]:
-        """The helper plus the top k-1 BM25 distractors, at a fixed per-task random position."""
+    def oracle(self, k: int, position: str = "random") -> list[Snippet]:
+        """The helper plus the top k-1 BM25 distractors, at a fixed per-task random position
+        (or first / last, for the position ablation)."""
         helper = next(s for s in self.snippets if s.origin == self.task["helper_qualname"])
         others = [self.snippets[i] for i in self._ranking() if self.snippets[i] is not helper][: k - 1]
-        others.insert(random.Random(self.task["id"]).randint(0, len(others)), helper)
+        at = {"first": 0, "last": len(others)}.get(position)
+        others.insert(random.Random(self.task["id"]).randint(0, len(others)) if at is None else at, helper)
         return others
 
     def function_view(self) -> str:
@@ -116,12 +120,14 @@ def build_prompt(ctx: TaskContext, condition: str, instruction: str, k: int, max
         code, truncated = ctx.file_view(max_file_chars)
         code_title = f"Contents of `{path}`"
         helper_in_code = task["helper_same_module"] and f"def {helper_name}(" in code
-    elif condition in ("none", "bm25", "oracle"):
+    elif condition in ("none", "bm25", "oracle", *POSITION_CONDITIONS):
         code, code_title, helper_in_code = ctx.function_view(), f"Excerpt from `{path}`", False
         if condition == "bm25":
             snippets = ctx.retrieve(k)
         elif condition == "oracle":
             snippets = ctx.oracle(k)
+        elif condition in POSITION_CONDITIONS:
+            snippets = ctx.oracle(k, position=condition.removeprefix("oracle_"))
     else:
         raise ValueError(f"unknown condition {condition}")
 
