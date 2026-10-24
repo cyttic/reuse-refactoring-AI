@@ -9,6 +9,14 @@ Nothing has to be copied, pasted or transferred by hand. All commands below are 
           └──────────── git pull ◀── GitHub ◀──── push results ──────────┘
 ```
 
+**Short way (after the one-time setup below):**
+```bash
+cd ~/reuse-refactoring-AI
+./run.sh             # lists the experiments
+./run.sh position    # pulls the code, starts the experiment in tmux, pushes results at the end
+```
+If the connection drops, `tmux attach -t position` shows it again. Re-running the same command resumes.
+
 ---
 
 ## Part A — One-time preparation (on the laptop)
