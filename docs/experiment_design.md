@@ -184,3 +184,19 @@ Known issues / next steps:
 1. **Unparse artifacts** leak hints (dead code from substituted defaults, `ast.unparse` formatting)
    → paraphrase step with an open model, re-validated with the same tests.
 2. Mined tasks (§3.2) not implemented yet.
+
+## 13. Results so far (2026-10-25)
+
+Runs: `results/qwen7b-v1` (Qwen2.5-Coder-7B-Instruct), `results/deepseek67b-v1` (deepseek-coder-6.7b-instruct);
+129 tasks × 4 conditions × 2 instructions each, HF backend, greedy decoding. DeepSeek's run was interrupted
+during evaluation; the last 23 outputs were evaluated locally.
+
+- Both models: the **decision** stage loses most reuse — with the helper guaranteed in context (oracle)
+  it is ignored in 60–83 of 129 tasks; retrieval loses 31.
+- Without context, reuse is ≈ 0–5% and the model defines its own helper in 48–75% of outputs.
+- Whole-module context reuses less than BM25 snippets (18–22% vs 21–47%).
+- **Snippet position** may matter: on the 98 tasks where BM25 retrieves the helper, DeepSeek reuses it
+  more with BM25 (helper mostly at rank 1) than with the oracle (seeded position): 57 vs 45 (reuse
+  instruction). Qwen shows the opposite (49 vs 54). Next: oracle-first / oracle-last ablation.
+- DeepSeek often renames the target function (“output does not define the function”, 61 outputs) —
+  counted as not applied.
