@@ -100,6 +100,8 @@ def main(argv: list[str] | None = None) -> None:
                                               "helper_in_context", "helper_rank", "file_truncated")}
                 record.update(repo=repo, helper_same_module=task["helper_same_module"])
                 try:
+                    if gen.get("error"):
+                        raise EditError(gen["error"])   # generation itself failed, e.g. out of GPU memory
                     new_source, info = apply_edit(mutated, task["caller_qualname"], gen["output"], module_name)
                 except EditError as exc:
                     record.update(applied=False, error=str(exc), tests_pass=False, reuse_helper=False,

@@ -40,8 +40,9 @@ class HFBackend:
         self.torch = torch
         print(f"loading {args.model} (downloads on first use) ...")
         self.tok = AutoTokenizer.from_pretrained(args.model, trust_remote_code=True)
+        # sdpa avoids materialising the full attention matrix for long prompts
         self.model = AutoModelForCausalLM.from_pretrained(args.model, torch_dtype="auto", device_map="auto",
-                                                          trust_remote_code=True)
+                                                          attn_implementation="sdpa", trust_remote_code=True)
         offloaded = {d for d in getattr(self.model, "hf_device_map", {}).values() if d in ("cpu", "disk")}
         if offloaded:
             print(f"WARNING: part of the model is on {offloaded}, generation will be very slow. "
@@ -58,13 +59,23 @@ class HFBackend:
                                                   return_tensors="pt").to(self.model.device)
             n_in = inputs["input_ids"].shape[1]
             sample = self.args.temperature > 0
-            with self.torch.no_grad():
-                out = self.model.generate(**inputs, max_new_tokens=self.args.max_tokens, do_sample=sample,
-                                          temperature=self.args.temperature if sample else None,
-                                          pad_token_id=self.tok.pad_token_id or self.tok.eos_token_id)
+            try:
+                with self.torch.no_grad():
+                    out = self.model.generate(**inputs, max_new_tokens=self.args.max_tokens, do_sample=sample,
+                                              temperature=self.args.temperature if sample else None,
+                                              pad_token_id=self.tok.pad_token_id or self.tok.eos_token_id)
+            except self.torch.OutOfMemoryError:
+                # Very long prompts do not fit for models without grouped-query attention; record and go on.
+                del inputs
+                self.torch.cuda.empty_cache()
+                texts.append(None)
+                print(f"    prompt {i}/{len(conversations)}: {n_in} tokens in, OUT OF GPU MEMORY (skipped)")
+                continue
             texts.append(self.tok.decode(out[0, n_in:], skip_special_tokens=True))
             print(f"    prompt {i}/{len(conversations)}: {n_in} tokens in, "
                   f"{out.shape[1] - n_in} out, {time.time() - t0:.0f}s")
+            del out, inputs
+            self.torch.cuda.empty_cache()
         return texts
 
 
@@ -130,7 +141,8 @@ def main(argv: list[str] | None = None) -> None:
         seconds = round((time.time() - t0) / len(chunk), 2)
         with args.out.open("a", encoding="utf-8") as fh:
             for (record, _), text in zip(chunk, texts):
-                fh.write(json.dumps({**record, "output": text, "seconds_per_prompt": seconds}) + "\n")
+                error = {"error": "out of GPU memory"} if text is None else {}
+                fh.write(json.dumps({**record, "output": text or "", **error, "seconds_per_prompt": seconds}) + "\n")
         # Full prompts are large; keep them compressed next to the generations (appending gzip members is valid).
         with gzip.open(args.out.with_name("prompts.jsonl.gz"), "at", encoding="utf-8") as fh:
             for record, messages in chunk:
