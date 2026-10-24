@@ -100,6 +100,12 @@ Changes after the smoke run (2026-10-23, 1 task, Qwen2.5-Coder-7B):
 - **`reuses any`** = calls `H`, an equivalent, or any repository function the input did not call; these
   extra cases are reviewed by hand.
 
+Fix after the first full run (qwen7b-v1, 2026-10-24): new helper *methods* the model wrote, either
+inside the class wrapper or at top level with a `self`/`cls` parameter, were dropped (wrapper) or put
+at module level (top level), so `self._new_helper()` raised `AttributeError` — 232 of 1,032 outputs were
+affected. New method names are now added to the class; existing names are still redefinitions. The
+affected outputs were re-evaluated.
+
 Manual check: a sample of "not reused" outputs is labelled by hand, since a model may correctly
 reuse a *different* equivalent helper (`repo_calls` lists all repository functions called).
 

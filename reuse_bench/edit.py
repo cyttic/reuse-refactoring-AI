@@ -73,6 +73,15 @@ def _is_self_import(node: ast.stmt, module_name: str | None) -> bool:
         (node.level == 1 and node.module == module_name.rpartition(".")[2])
 
 
+def _is_method_like(node: ast.stmt) -> bool:
+    if not isinstance(node, FunctionNode):
+        return False
+    decorators = {d.id for d in node.decorator_list if isinstance(d, ast.Name)}
+    first = node.args.posonlyargs + node.args.args
+    return bool(decorators & {"staticmethod", "classmethod", "property"}) or \
+        bool(first) and first[0].arg in ("self", "cls")
+
+
 def apply_edit(source: str, qualname: str, output: str, module_name: str | None = None) -> tuple[str, dict]:
     name = qualname.rpartition(".")[2]
     cls_name = qualname.rpartition(".")[0]
@@ -105,12 +114,23 @@ def apply_edit(source: str, qualname: str, output: str, module_name: str | None 
         for bound, origin in _bound(node):
             module_bound.setdefault(bound, set()).add(origin)
     dropped: list[str] = []
-    if wrapper:
+    new_methods: list[FunctionNode] = []
+    if cls_name:
         cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == cls_name)
         cls_dumps = {ast.dump(n) for n in cls.body}
-        for member in wrapper.body:
+        cls_names = {b for n in cls.body for b, _ in _bound(n)}
+        # Sibling methods the model wrote, inside the class wrapper or at top level with a `self`/`cls`
+        # first parameter: new names are added to the class, existing ones are redefinitions.
+        members = [m for m in wrapper.body if m is not new_fn] if wrapper else []
+        members += [n for n in extras if _is_method_like(n)]
+        extras = [n for n in extras if not _is_method_like(n)]
+        for member in members:
             placeholder = isinstance(member, ast.Expr) and isinstance(member.value, ast.Constant)
-            if member is not new_fn and not placeholder and ast.dump(member) not in cls_dumps:
+            if placeholder or ast.dump(member) in cls_dumps:
+                continue
+            if isinstance(member, FunctionNode) and member.name not in cls_names:
+                new_methods.append(member)
+            else:
                 dropped.append(f"redefines {cls_name}.{getattr(member, 'name', type(member).__name__)}")
     kept_imports = []
     for node in imports:
@@ -150,7 +170,7 @@ def apply_edit(source: str, qualname: str, output: str, module_name: str | None 
     # (start, end, replacement) on 0-based line ranges, applied bottom-up.
     ops = []
     if is_method:
-        method = textwrap.dedent(text([new_fn]))
+        method = "\n".join(textwrap.dedent(text([n])) for n in new_methods + [new_fn])
         ops.append((_first_line(target) - 1, target.end_lineno, textwrap.indent(method, indent)))
         cls = next(n for n in tree.body if isinstance(n, ast.ClassDef) and n.name == qualname.rpartition(".")[0])
         if extras:
@@ -173,7 +193,7 @@ def apply_edit(source: str, qualname: str, output: str, module_name: str | None 
         raise EditError("edited file does not parse") from exc
 
     info = {
-        "new_functions": [n.name for n in extras if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef))],
+        "new_functions": [n.name for n in extras + new_methods if isinstance(n, FunctionNode)],
         "added_imports": added,
         "signature_kept": ast.dump(target.args) == ast.dump(new_fn.args),
         "dropped": list(dict.fromkeys(dropped)),

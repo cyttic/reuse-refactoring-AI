@@ -63,7 +63,7 @@ def test_method_answered_inside_its_class():
 def test_method_wrapper_with_changed_sibling_is_reported():
     output = ("```python\nclass Box:\n    def other(self):\n        return 1\n\n"
               "    def method(self, x):\n        return x + x\n```")
-    _, info = apply_edit(SOURCE, "Box.method", output)
+    _, info = apply_edit(SOURCE + "\n    def other(self):\n        return 0\n", "Box.method", output)
     assert info["dropped"] == ["redefines Box.other"]
 
 
@@ -103,3 +103,22 @@ def test_patch_round_trip():
     assert apply_patch(SOURCE, patch) == new
     with pytest.raises(ValueError, match="does not apply"):
         apply_patch(SOURCE.replace("return y.lower()", "return y.upper()"), patch)
+
+
+def test_new_sibling_methods_are_added_to_the_class():
+    top_level = ("```python\ndef method(self, x):\n    return self._twice(x)\n\n"
+                 "def _twice(self, x):\n    return x * 2\n```")
+    wrapped = ("```python\nclass Box:\n    def method(self, x):\n        return self._twice(x)\n\n"
+               "    def _twice(self, x):\n        return x * 2\n```")
+    for output in (top_level, wrapped):
+        new, info = apply_edit(SOURCE, "Box.method", output)
+        assert "class Box:\n    def _twice(self, x):\n        return x * 2\n\n    def method(self, x):\n" in new
+        assert info["new_functions"] == ["_twice"] and info["compliant"]
+
+
+def test_top_level_redefinition_of_a_method_is_dropped():
+    output = ("```python\ndef method(self, x):\n    return self.method(x)\n\n"
+              "def method2(self):\n    return 1\n```")
+    source = SOURCE + "\n    def method2(self):\n        return 0\n"
+    new, info = apply_edit(source, "Box.method", output)
+    assert info["dropped"] == ["redefines Box.method2"] and "return 1" not in new
