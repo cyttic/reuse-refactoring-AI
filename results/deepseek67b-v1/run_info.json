@@ -1,0 +1,8 @@
+{
+  "run": "deepseek67b-v1",
+  "model": "deepseek-ai/deepseek-coder-6.7b-instruct",
+  "extra_args": "--backend hf",
+  "gpu": "NVIDIA RTX A5000, 24564 MiB",
+  "code_commit": "48b379ec6ba7fb4bf3cc05e898205b8af7e48608",
+  "started": "2026-10-24 20:09:59"
+}
