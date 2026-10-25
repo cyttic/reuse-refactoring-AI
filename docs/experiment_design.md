@@ -65,7 +65,8 @@ Instruction variants (crossed with every condition), following CodeIF (ACL 2025 
 | Group | Models | Where |
 |-------|--------|-------|
 | Frontier | 2 API models (e.g. Claude, GPT) | Paid API |
-| Open | Qwen2.5-Coder-7B (fp16), Qwen2.5-Coder-32B or DeepSeek-Coder-V2-Lite (4-bit) | A5000 (24 GB) |
+| Open (small) | Qwen2.5-Coder-7B-Instruct, deepseek-coder-6.7b-instruct (bf16, HF backend) | A5000 (24 GB) |
+| Open (2025–26) | Qwen3-Coder-30B-A3B-Instruct (`cyankiwi/...-AWQ-4bit`), Qwen3.8-27B (`RedHatAI/Qwen3.8-27B-INT4`, thinking off) — 4-bit, vLLM 0.32 in `~/env-vllm` | A5000 (24 GB) |
 | Stretch (RQ4) | LoRA fine-tune of 7B on mined reuse refactorings | A5000 / Colab Pro |
 
 ## 6. Metrics (all automatic)

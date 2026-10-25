@@ -9,6 +9,8 @@ import textwrap
 from .prompting import find_function
 
 CODE_BLOCK = re.compile(r"```[ \t]*(?:python|py|python3)?[ \t]*\n(.*?)```", re.S)
+# Reasoning of thinking models; an unclosed block (token limit hit while thinking) is dropped to the end.
+THINKING = re.compile(r"<think>.*?(?:</think>|$)", re.S)
 FunctionNode = ast.FunctionDef | ast.AsyncFunctionDef
 
 
@@ -17,6 +19,7 @@ class EditError(Exception):
 
 
 def extract_code(text: str, name: str) -> str:
+    text = THINKING.sub("", text)
     blocks = CODE_BLOCK.findall(text)
     for block in reversed(blocks):
         if re.search(rf"\bdef\s+{re.escape(name)}\s*\(", block):

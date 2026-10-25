@@ -13,6 +13,7 @@ RUN=${2:?usage: $0 MODEL RUN_NAME [extra args for reuse_bench.generate]}
 shift 2
 OUT=results/$RUN
 PY=.venv/bin/python
+GEN_PY=${GEN_PY:-$PY}   # generation may use another environment (e.g. ~/env-vllm); evaluation needs .venv
 mkdir -p "$OUT"
 
 git pull --ff-only || echo "warning: git pull failed, running with local code"
@@ -37,7 +38,7 @@ if first:
 json.dump(info, open(path, "w"), indent=2)
 EOF
 
-$PY -m reuse_bench.generate --tasks data/tasks/*.jsonl --model "$MODEL" \
+$GEN_PY -m reuse_bench.generate --tasks data/tasks/*.jsonl --model "$MODEL" \
     --out "$OUT/generations.jsonl" "$@" 2>&1 | tee -a "$OUT/generate.log"
 $PY -m reuse_bench.evaluate --tasks data/tasks/*.jsonl --generations "$OUT/generations.jsonl" \
     --out "$OUT/metrics.jsonl" 2>&1 | tee -a "$OUT/evaluate.log"

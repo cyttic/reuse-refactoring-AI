@@ -18,17 +18,49 @@ from .index import RepoIndex
 from .prompting import CONDITIONS, INSTRUCTIONS, TaskContext, build_prompt, load_tasks
 
 
+class GenerationFailed(str):
+    """Returned instead of an output when one prompt cannot be generated; the text is the reason."""
+
+
 class VLLMBackend:
     def __init__(self, args):
+        import vllm
         from vllm import LLM, SamplingParams
+        print(f"vllm {vllm.__version__}")
+        extra = {}
+        if args.text_only:
+            # Multimodal checkpoints (e.g. Qwen3.8): reserve no memory for images or video.
+            extra["limit_mm_per_prompt"] = {"image": 0, "video": 0}
         self.llm = LLM(model=args.model, max_model_len=args.max_model_len, seed=args.seed,
                        gpu_memory_utilization=args.gpu_memory_utilization,
-                       quantization=args.quantization, trust_remote_code=True)
+                       quantization=args.quantization, enforce_eager=args.enforce_eager,
+                       trust_remote_code=True, **extra)
         self.params = SamplingParams(temperature=args.temperature, max_tokens=args.max_tokens, seed=args.seed)
+        # Thinking models answer directly, like the other models (ignored by templates without the switch).
+        self.template_kwargs = {"enable_thinking": False} if args.no_thinking else None
+        try:    # vLLM >= 0.2x reports bad requests (e.g. too-long prompts) as VLLMClientError, not ValueError
+            from vllm.exceptions import VLLMClientError
+            self.request_errors = (ValueError, VLLMClientError)
+        except ImportError:
+            self.request_errors = (ValueError,)
+
+    def _chat(self, conversations: list[list[dict]]) -> list[str]:
+        outputs = self.llm.chat(conversations, self.params, use_tqdm=True,
+                                chat_template_kwargs=self.template_kwargs)
+        return [o.outputs[0].text for o in outputs]
 
     def generate(self, conversations: list[list[dict]]) -> list[str]:
-        outputs = self.llm.chat(conversations, self.params, use_tqdm=True)
-        return [o.outputs[0].text for o in outputs]
+        try:
+            return self._chat(conversations)
+        except self.request_errors:
+            # One bad prompt (e.g. longer than --max-model-len) fails the whole batch: retry one by one.
+            texts = []
+            for messages in conversations:
+                try:
+                    texts += self._chat([messages])
+                except self.request_errors as exc:
+                    texts.append(GenerationFailed(f"generation failed: {str(exc)[:200]}"))
+            return texts
 
 
 class HFBackend:
@@ -68,7 +100,7 @@ class HFBackend:
                 # Very long prompts do not fit for models without grouped-query attention; record and go on.
                 del inputs
                 self.torch.cuda.empty_cache()
-                texts.append(None)
+                texts.append(GenerationFailed("out of GPU memory"))
                 print(f"    prompt {i}/{len(conversations)}: {n_in} tokens in, OUT OF GPU MEMORY (skipped)")
                 continue
             texts.append(self.tok.decode(out[0, n_in:], skip_special_tokens=True))
@@ -97,6 +129,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--seed", type=int, default=0)
     parser.add_argument("--quantization", default=None, help="e.g. awq; usually auto-detected")
     parser.add_argument("--gpu-memory-utilization", type=float, default=0.90)
+    parser.add_argument("--no-thinking", action="store_true", help="disable thinking mode (Qwen3.x chat templates)")
+    parser.add_argument("--text-only", action="store_true", help="multimodal checkpoint: no image/video memory")
+    parser.add_argument("--enforce-eager", action="store_true", help="vLLM: no CUDA graphs (saves ~1 GB GPU memory)")
     parser.add_argument("--no-system-prompt", action="store_true", help="for chat templates without a system role")
     parser.add_argument("--chunk", type=int, default=64, help="prompts per batch written to disk")
     parser.add_argument("--dry-run", action="store_true", help="build prompts only, no model")
@@ -141,8 +176,10 @@ def main(argv: list[str] | None = None) -> None:
         seconds = round((time.time() - t0) / len(chunk), 2)
         with args.out.open("a", encoding="utf-8") as fh:
             for (record, _), text in zip(chunk, texts):
-                error = {"error": "out of GPU memory"} if text is None else {}
-                fh.write(json.dumps({**record, "output": text or "", **error, "seconds_per_prompt": seconds}) + "\n")
+                failed = isinstance(text, GenerationFailed)
+                error = {"error": str(text)} if failed else {}
+                fh.write(json.dumps({**record, "output": "" if failed else text, **error,
+                                     "seconds_per_prompt": seconds}) + "\n")
         # Full prompts are large; keep them compressed next to the generations (appending gzip members is valid).
         with gzip.open(args.out.with_name("prompts.jsonl.gz"), "at", encoding="utf-8") as fh:
             for record, messages in chunk:

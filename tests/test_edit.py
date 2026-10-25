@@ -122,3 +122,11 @@ def test_top_level_redefinition_of_a_method_is_dropped():
     source = SOURCE + "\n    def method2(self):\n        return 0\n"
     new, info = apply_edit(source, "Box.method", output)
     assert info["dropped"] == ["redefines Box.method2"] and "return 1" not in new
+
+
+def test_thinking_is_ignored_even_when_unclosed():
+    code = "```python\ndef target(x):\n    return x\n```"
+    new, _ = apply_edit(SOURCE, "target", "<think>try ```python\ndef target(x): pass\n```</think>\n" + code)
+    assert "    return x\n" in new and "pass" not in new
+    with pytest.raises(EditError, match="no code block"):
+        apply_edit(SOURCE, "target", "<think>```python\ndef target(x):\n    return x\n```")

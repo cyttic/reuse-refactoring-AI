@@ -11,9 +11,22 @@ cd "$(dirname "$0")"
 
 QWEN=Qwen/Qwen2.5-Coder-7B-Instruct
 DEEPSEEK=deepseek-ai/deepseek-coder-6.7b-instruct
+# 4-bit checkpoints of the 2025-26 models (bf16 does not fit the 24 GB A5000); need scripts/setup_vllm.sh
+QWEN3_CODER=cyankiwi/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit
+QWEN38=RedHatAI/Qwen3.8-27B-INT4
+ALL_CONDITIONS=none,bm25,oracle,file,oracle_first,oracle_last
 
 run() {     # run <model> <run name> [extra args for reuse_bench.generate]
     bash scripts/run_experiment.sh "$1" "$2" --backend hf "${@:3}"
+}
+
+run_vllm() {    # same, generating with vLLM from ~/env-vllm
+    if [ ! -x "$HOME/env-vllm/bin/python" ]; then
+        echo "vLLM environment missing: run ./run.sh setup-vllm first"
+        return 1
+    fi
+    GEN_PY=$HOME/env-vllm/bin/python bash scripts/run_experiment.sh "$1" "$2" --backend vllm \
+        --conditions "$ALL_CONDITIONS" --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 "${@:3}"
 }
 
 experiment() {
@@ -23,6 +36,12 @@ experiment() {
         position)   # helper always first / always last among the oracle snippets, both models
             run "$QWEN" qwen7b-v1 --conditions oracle_first,oracle_last
             run "$DEEPSEEK" deepseek67b-v1 --conditions oracle_first,oracle_last ;;
+        setup-vllm) bash scripts/setup_vllm.sh ;;
+        qwen3coder) run_vllm "$QWEN3_CODER" qwen3coder30b-v1 ;;
+        qwen38)     run_vllm "$QWEN38" qwen38-27b-v1 --no-thinking --text-only --enforce-eager ;;
+        new-models) # both 2025-26 models, one after the other
+            run_vllm "$QWEN3_CODER" qwen3coder30b-v1
+            run_vllm "$QWEN38" qwen38-27b-v1 --no-thinking --text-only --enforce-eager ;;
         *) return 1 ;;
     esac
 }
@@ -35,6 +54,11 @@ usage: ./run.sh <experiment>
   deepseek   main conditions, deepseek-coder-6.7b     (~4-5 h)
   position   helper first/last in the oracle context,
              both models                              (~2 h per model)
+
+  setup-vllm  one-time: vLLM in ~/env-vllm (~/env stays untouched)
+  qwen3coder  Qwen3-Coder-30B-A3B (4-bit), all six conditions, vLLM
+  qwen38      Qwen3.8-27B (4-bit, thinking off), all six conditions, vLLM
+  new-models  qwen3coder, then qwen38
 
 Finished parts are skipped, so re-running the same experiment resumes it.
 EOF

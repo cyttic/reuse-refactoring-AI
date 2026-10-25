@@ -17,6 +17,9 @@ cd ~/reuse-refactoring-AI
 ```
 If the connection drops, `tmux attach -t position` shows it again. Re-running the same command resumes.
 
+Newer 4-bit models run with vLLM from a separate environment: `./run.sh setup-vllm` once, then
+`./run.sh new-models` (or `qwen3coder` / `qwen38` separately).
+
 ---
 
 ## Part A — One-time preparation (on the laptop)
