@@ -1,0 +1,203 @@
+=== 2026-10-25 08:04:46 starting 'position' (code e679510)
+Already up to date.
+boltons: 4e5faa3
+cachetools: 6f23e2a
+click: 2247b35
+mistune: f7ec702
+parso: b26da16
+pycparser: 3ec766b
+pyflakes: f0a8b98
+pygments: 156d85f
+python-tabulate: 268615a
+sqlparse: 60cdc64
+tomlkit: eddd27e
+toolz: 451af60
+129 tasks, 0 prompts to generate (1548 already done)
+## Overall
+
+*compliant*: signature kept and no existing code redefined (violations are dropped before testing); *valid*: tests pass and compliant; *reuses any*: calls the target helper or another repository function the input did not call (check these by hand).
+
+| model | condition | instruction | n | applied | tests pass | compliant | valid | reuses helper | reuses any | valid & reuses helper | defines new helper | hallucinated import |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-7B-Instruct | bm25 | generic | 129 | 98% (127/129) | 66% (85/129) | 88% (113/129) | 60% (77/129) | 21% (27/129) | 22% (28/129) | 14% (18/129) | 40% (52/129) | 2% (2/129) |
+| Qwen2.5-Coder-7B-Instruct | bm25 | reuse | 129 | 97% (125/129) | 61% (79/129) | 88% (113/129) | 56% (72/129) | 43% (55/129) | 45% (58/129) | 32% (41/129) | 25% (32/129) | 6% (8/129) |
+| Qwen2.5-Coder-7B-Instruct | file | generic | 129 | 95% (122/129) | 65% (84/129) | 74% (96/129) | 52% (67/129) | 18% (23/129) | 20% (26/129) | 8% (10/129) | 23% (30/129) | 1% (1/129) |
+| Qwen2.5-Coder-7B-Instruct | file | reuse | 129 | 91% (118/129) | 67% (87/129) | 71% (92/129) | 52% (67/129) | 22% (28/129) | 25% (32/129) | 9% (12/129) | 18% (23/129) | 3% (4/129) |
+| Qwen2.5-Coder-7B-Instruct | none | generic | 129 | 98% (126/129) | 55% (71/129) | 86% (111/129) | 49% (63/129) | 1% (1/129) | 1% (1/129) | 0% (0/129) | 61% (79/129) | 1% (1/129) |
+| Qwen2.5-Coder-7B-Instruct | none | reuse | 129 | 96% (124/129) | 53% (68/129) | 82% (106/129) | 43% (56/129) | 3% (4/129) | 5% (6/129) | 0% (0/129) | 75% (97/129) | 6% (8/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle | generic | 129 | 99% (128/129) | 66% (85/129) | 86% (111/129) | 59% (76/129) | 38% (49/129) | 38% (49/129) | 22% (29/129) | 41% (53/129) | 2% (2/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle | reuse | 129 | 98% (127/129) | 61% (79/129) | 87% (112/129) | 53% (69/129) | 53% (69/129) | 56% (72/129) | 37% (48/129) | 30% (39/129) | 6% (8/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | generic | 129 | 98% (127/129) | 71% (92/129) | 89% (115/129) | 66% (85/129) | 31% (40/129) | 31% (40/129) | 21% (27/129) | 43% (56/129) | 2% (2/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | reuse | 129 | 97% (125/129) | 60% (78/129) | 89% (115/129) | 56% (72/129) | 49% (63/129) | 52% (67/129) | 39% (50/129) | 22% (29/129) | 8% (10/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | generic | 129 | 98% (127/129) | 64% (82/129) | 85% (110/129) | 58% (75/129) | 32% (41/129) | 32% (41/129) | 21% (27/129) | 47% (60/129) | 2% (3/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | reuse | 129 | 99% (128/129) | 62% (80/129) | 88% (114/129) | 54% (70/129) | 52% (67/129) | 55% (71/129) | 34% (44/129) | 26% (34/129) | 6% (8/129) |
+
+
+## Reuse funnel
+
+Stages: helper in context → helper called (given in context) → tests pass (given called). Loss columns count tasks lost at each stage; the last column counts reuse without the helper in context (e.g. from training data).
+
+| model | condition | instruction | helper in context | called (of in context) | pass (of called) | lost: not in context | lost: ignored | …of which reused another fn | lost: broken | called without context |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-7B-Instruct | bm25 | generic | 76% (98/129) | 26% (25/98) | 84% (21/25) | 31 | 73 | 1 | 4 | 2 |
+| Qwen2.5-Coder-7B-Instruct | bm25 | reuse | 76% (98/129) | 50% (49/98) | 82% (40/49) | 31 | 49 | 2 | 9 | 6 |
+| Qwen2.5-Coder-7B-Instruct | file | generic | 62% (80/129) | 24% (19/80) | 63% (12/19) | 49 | 61 | 1 | 7 | 4 |
+| Qwen2.5-Coder-7B-Instruct | file | reuse | 62% (80/129) | 30% (24/80) | 71% (17/24) | 49 | 56 | 3 | 7 | 4 |
+| Qwen2.5-Coder-7B-Instruct | none | generic | 0% (0/129) | – | – | 129 | 0 | 0 | 0 | 1 |
+| Qwen2.5-Coder-7B-Instruct | none | reuse | 0% (0/129) | – | – | 129 | 0 | 0 | 0 | 4 |
+| Qwen2.5-Coder-7B-Instruct | oracle | generic | 100% (129/129) | 38% (49/129) | 71% (35/49) | 0 | 80 | 0 | 14 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle | reuse | 100% (129/129) | 53% (69/129) | 75% (52/69) | 0 | 60 | 3 | 17 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | generic | 100% (129/129) | 31% (40/129) | 75% (30/40) | 0 | 89 | 0 | 10 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | reuse | 100% (129/129) | 49% (63/129) | 84% (53/63) | 0 | 66 | 4 | 10 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | generic | 100% (129/129) | 32% (41/129) | 73% (30/41) | 0 | 88 | 0 | 11 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | reuse | 100% (129/129) | 52% (67/129) | 75% (50/67) | 0 | 62 | 4 | 17 | 0 |
+
+
+## Retrieval of the helper (BM25)
+
+| model | condition | instruction | n | recall@k | MRR |
+|---|---|---|---|---|---|
+| Qwen2.5-Coder-7B-Instruct | bm25 | generic | 129 | 76% (98/129) | 0.58 |
+| Qwen2.5-Coder-7B-Instruct | bm25 | reuse | 129 | 76% (98/129) | 0.58 |
+
+error: cannot pull with rebase: You have unstaged changes.
+error: Please commit or stash them.
+=== 2026-10-25 08:04:51 stopped with exit code 0
+=== 2026-10-25 08:58:29 starting 'position' (code 0dafccc)
+Already up to date.
+boltons: 4e5faa3
+cachetools: 6f23e2a
+click: 2247b35
+mistune: f7ec702
+parso: b26da16
+pycparser: 3ec766b
+pyflakes: f0a8b98
+pygments: 156d85f
+python-tabulate: 268615a
+sqlparse: 60cdc64
+tomlkit: eddd27e
+toolz: 451af60
+129 tasks, 0 prompts to generate (1548 already done)
+## Overall
+
+*compliant*: signature kept and no existing code redefined (violations are dropped before testing); *valid*: tests pass and compliant; *reuses any*: calls the target helper or another repository function the input did not call (check these by hand).
+
+| model | condition | instruction | n | applied | tests pass | compliant | valid | reuses helper | reuses any | valid & reuses helper | defines new helper | hallucinated import |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-7B-Instruct | bm25 | generic | 129 | 98% (127/129) | 66% (85/129) | 88% (113/129) | 60% (77/129) | 21% (27/129) | 22% (28/129) | 14% (18/129) | 40% (52/129) | 2% (2/129) |
+| Qwen2.5-Coder-7B-Instruct | bm25 | reuse | 129 | 97% (125/129) | 61% (79/129) | 88% (113/129) | 56% (72/129) | 43% (55/129) | 45% (58/129) | 32% (41/129) | 25% (32/129) | 6% (8/129) |
+| Qwen2.5-Coder-7B-Instruct | file | generic | 129 | 95% (122/129) | 65% (84/129) | 74% (96/129) | 52% (67/129) | 18% (23/129) | 20% (26/129) | 8% (10/129) | 23% (30/129) | 1% (1/129) |
+| Qwen2.5-Coder-7B-Instruct | file | reuse | 129 | 91% (118/129) | 67% (87/129) | 71% (92/129) | 52% (67/129) | 22% (28/129) | 25% (32/129) | 9% (12/129) | 18% (23/129) | 3% (4/129) |
+| Qwen2.5-Coder-7B-Instruct | none | generic | 129 | 98% (126/129) | 55% (71/129) | 86% (111/129) | 49% (63/129) | 1% (1/129) | 1% (1/129) | 0% (0/129) | 61% (79/129) | 1% (1/129) |
+| Qwen2.5-Coder-7B-Instruct | none | reuse | 129 | 96% (124/129) | 53% (68/129) | 82% (106/129) | 43% (56/129) | 3% (4/129) | 5% (6/129) | 0% (0/129) | 75% (97/129) | 6% (8/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle | generic | 129 | 99% (128/129) | 66% (85/129) | 86% (111/129) | 59% (76/129) | 38% (49/129) | 38% (49/129) | 22% (29/129) | 41% (53/129) | 2% (2/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle | reuse | 129 | 98% (127/129) | 61% (79/129) | 87% (112/129) | 53% (69/129) | 53% (69/129) | 56% (72/129) | 37% (48/129) | 30% (39/129) | 6% (8/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | generic | 129 | 98% (127/129) | 71% (92/129) | 89% (115/129) | 66% (85/129) | 31% (40/129) | 31% (40/129) | 21% (27/129) | 43% (56/129) | 2% (2/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | reuse | 129 | 97% (125/129) | 60% (78/129) | 89% (115/129) | 56% (72/129) | 49% (63/129) | 52% (67/129) | 39% (50/129) | 22% (29/129) | 8% (10/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | generic | 129 | 98% (127/129) | 64% (82/129) | 85% (110/129) | 58% (75/129) | 32% (41/129) | 32% (41/129) | 21% (27/129) | 47% (60/129) | 2% (3/129) |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | reuse | 129 | 99% (128/129) | 62% (80/129) | 88% (114/129) | 54% (70/129) | 52% (67/129) | 55% (71/129) | 34% (44/129) | 26% (34/129) | 6% (8/129) |
+
+
+## Reuse funnel
+
+Stages: helper in context → helper called (given in context) → tests pass (given called). Loss columns count tasks lost at each stage; the last column counts reuse without the helper in context (e.g. from training data).
+
+| model | condition | instruction | helper in context | called (of in context) | pass (of called) | lost: not in context | lost: ignored | …of which reused another fn | lost: broken | called without context |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Qwen2.5-Coder-7B-Instruct | bm25 | generic | 76% (98/129) | 26% (25/98) | 84% (21/25) | 31 | 73 | 1 | 4 | 2 |
+| Qwen2.5-Coder-7B-Instruct | bm25 | reuse | 76% (98/129) | 50% (49/98) | 82% (40/49) | 31 | 49 | 2 | 9 | 6 |
+| Qwen2.5-Coder-7B-Instruct | file | generic | 62% (80/129) | 24% (19/80) | 63% (12/19) | 49 | 61 | 1 | 7 | 4 |
+| Qwen2.5-Coder-7B-Instruct | file | reuse | 62% (80/129) | 30% (24/80) | 71% (17/24) | 49 | 56 | 3 | 7 | 4 |
+| Qwen2.5-Coder-7B-Instruct | none | generic | 0% (0/129) | – | – | 129 | 0 | 0 | 0 | 1 |
+| Qwen2.5-Coder-7B-Instruct | none | reuse | 0% (0/129) | – | – | 129 | 0 | 0 | 0 | 4 |
+| Qwen2.5-Coder-7B-Instruct | oracle | generic | 100% (129/129) | 38% (49/129) | 71% (35/49) | 0 | 80 | 0 | 14 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle | reuse | 100% (129/129) | 53% (69/129) | 75% (52/69) | 0 | 60 | 3 | 17 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | generic | 100% (129/129) | 31% (40/129) | 75% (30/40) | 0 | 89 | 0 | 10 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_first | reuse | 100% (129/129) | 49% (63/129) | 84% (53/63) | 0 | 66 | 4 | 10 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | generic | 100% (129/129) | 32% (41/129) | 73% (30/41) | 0 | 88 | 0 | 11 | 0 |
+| Qwen2.5-Coder-7B-Instruct | oracle_last | reuse | 100% (129/129) | 52% (67/129) | 75% (50/67) | 0 | 62 | 4 | 17 | 0 |
+
+
+## Retrieval of the helper (BM25)
+
+| model | condition | instruction | n | recall@k | MRR |
+|---|---|---|---|---|---|
+| Qwen2.5-Coder-7B-Instruct | bm25 | generic | 129 | 76% (98/129) | 0.58 |
+| Qwen2.5-Coder-7B-Instruct | bm25 | reuse | 129 | 76% (98/129) | 0.58 |
+
+pushed results/qwen7b-v1
+Already up to date.
+boltons: 4e5faa3
+cachetools: 6f23e2a
+click: 2247b35
+mistune: f7ec702
+parso: b26da16
+pycparser: 3ec766b
+pyflakes: f0a8b98
+pygments: 156d85f
+python-tabulate: 268615a
+sqlparse: 60cdc64
+tomlkit: eddd27e
+toolz: 451af60
+129 tasks, 0 prompts to generate (1548 already done)
+toolz: evaluating 10 generations
+  FAIL reuse=True  oracle_last generic toolz::toolz.itertoolz.interpose::toolz.itertoolz.concat
+  FAIL reuse=True  oracle_last reuse   toolz::toolz.itertoolz.interpose::toolz.itertoolz.concat
+  FAIL reuse=False oracle_first generic toolz::toolz.itertoolz.mapcat::toolz.itertoolz.concat
+  pass reuse=True  oracle_first reuse   toolz::toolz.itertoolz.mapcat::toolz.itertoolz.concat
+  FAIL reuse=False oracle_last generic toolz::toolz.itertoolz.mapcat::toolz.itertoolz.concat
+  FAIL reuse=False oracle_last reuse   toolz::toolz.itertoolz.mapcat::toolz.itertoolz.concat
+  FAIL reuse=False oracle_first generic toolz::toolz.recipes.countby::toolz.itertoolz.frequencies
+  FAIL reuse=False oracle_first reuse   toolz::toolz.recipes.countby::toolz.itertoolz.frequencies
+  pass reuse=False oracle_last generic toolz::toolz.recipes.countby::toolz.itertoolz.frequencies
+  pass reuse=False oracle_last reuse   toolz::toolz.recipes.countby::toolz.itertoolz.frequencies
+## Overall
+
+*compliant*: signature kept and no existing code redefined (violations are dropped before testing); *valid*: tests pass and compliant; *reuses any*: calls the target helper or another repository function the input did not call (check these by hand).
+
+| model | condition | instruction | n | applied | tests pass | compliant | valid | reuses helper | reuses any | valid & reuses helper | defines new helper | hallucinated import |
+|---|---|---|---|---|---|---|---|---|---|---|---|---|
+| deepseek-coder-6.7b-instruct | bm25 | generic | 129 | 91% (117/129) | 57% (74/129) | 69% (89/129) | 45% (58/129) | 33% (42/129) | 33% (42/129) | 19% (25/129) | 30% (39/129) | 1% (1/129) |
+| deepseek-coder-6.7b-instruct | bm25 | reuse | 129 | 97% (125/129) | 55% (71/129) | 72% (93/129) | 45% (58/129) | 47% (60/129) | 47% (61/129) | 24% (31/129) | 36% (46/129) | 2% (3/129) |
+| deepseek-coder-6.7b-instruct | file | generic | 129 | 84% (108/129) | 65% (84/129) | 53% (68/129) | 47% (60/129) | 18% (23/129) | 19% (25/129) | 9% (12/129) | 16% (20/129) | 1% (1/129) |
+| deepseek-coder-6.7b-instruct | file | reuse | 129 | 84% (108/129) | 63% (81/129) | 53% (69/129) | 43% (55/129) | 19% (24/129) | 21% (27/129) | 10% (13/129) | 18% (23/129) | 1% (1/129) |
+| deepseek-coder-6.7b-instruct | none | generic | 129 | 88% (114/129) | 45% (58/129) | 63% (81/129) | 36% (46/129) | 4% (5/129) | 4% (5/129) | 0% (0/129) | 48% (62/129) | 1% (1/129) |
+| deepseek-coder-6.7b-instruct | none | reuse | 129 | 89% (115/129) | 46% (59/129) | 64% (83/129) | 37% (48/129) | 5% (7/129) | 5% (7/129) | 1% (1/129) | 49% (63/129) | 1% (1/129) |
+| deepseek-coder-6.7b-instruct | oracle | generic | 129 | 96% (124/129) | 55% (71/129) | 72% (93/129) | 42% (54/129) | 36% (46/129) | 36% (47/129) | 18% (23/129) | 36% (46/129) | 2% (2/129) |
+| deepseek-coder-6.7b-instruct | oracle | reuse | 129 | 96% (124/129) | 53% (68/129) | 72% (93/129) | 42% (54/129) | 45% (58/129) | 47% (60/129) | 24% (31/129) | 40% (51/129) | 2% (3/129) |
+| deepseek-coder-6.7b-instruct | oracle_first | generic | 129 | 91% (117/129) | 53% (69/129) | 69% (89/129) | 43% (55/129) | 36% (47/129) | 36% (47/129) | 19% (25/129) | 29% (37/129) | 2% (2/129) |
+| deepseek-coder-6.7b-instruct | oracle_first | reuse | 129 | 96% (124/129) | 58% (75/129) | 75% (97/129) | 48% (62/129) | 58% (75/129) | 58% (75/129) | 32% (41/129) | 29% (38/129) | 2% (3/129) |
+| deepseek-coder-6.7b-instruct | oracle_last | generic | 129 | 96% (124/129) | 64% (82/129) | 76% (98/129) | 52% (67/129) | 36% (47/129) | 36% (47/129) | 24% (31/129) | 33% (43/129) | 1% (1/129) |
+| deepseek-coder-6.7b-instruct | oracle_last | reuse | 129 | 95% (123/129) | 59% (76/129) | 73% (94/129) | 47% (60/129) | 43% (55/129) | 43% (56/129) | 26% (34/129) | 34% (44/129) | 1% (1/129) |
+
+
+## Reuse funnel
+
+Stages: helper in context → helper called (given in context) → tests pass (given called). Loss columns count tasks lost at each stage; the last column counts reuse without the helper in context (e.g. from training data).
+
+| model | condition | instruction | helper in context | called (of in context) | pass (of called) | lost: not in context | lost: ignored | …of which reused another fn | lost: broken | called without context |
+|---|---|---|---|---|---|---|---|---|---|---|
+| deepseek-coder-6.7b-instruct | bm25 | generic | 76% (98/129) | 39% (38/98) | 66% (25/38) | 31 | 60 | 0 | 13 | 4 |
+| deepseek-coder-6.7b-instruct | bm25 | reuse | 76% (98/129) | 58% (57/98) | 63% (36/57) | 31 | 41 | 1 | 21 | 3 |
+| deepseek-coder-6.7b-instruct | file | generic | 62% (80/129) | 28% (22/80) | 86% (19/22) | 49 | 58 | 1 | 3 | 1 |
+| deepseek-coder-6.7b-instruct | file | reuse | 62% (80/129) | 28% (22/80) | 91% (20/22) | 49 | 58 | 1 | 2 | 2 |
+| deepseek-coder-6.7b-instruct | none | generic | 0% (0/129) | – | – | 129 | 0 | 0 | 0 | 5 |
+| deepseek-coder-6.7b-instruct | none | reuse | 0% (0/129) | – | – | 129 | 0 | 0 | 0 | 7 |
+| deepseek-coder-6.7b-instruct | oracle | generic | 100% (129/129) | 36% (46/129) | 59% (27/46) | 0 | 83 | 1 | 19 | 0 |
+| deepseek-coder-6.7b-instruct | oracle | reuse | 100% (129/129) | 45% (58/129) | 64% (37/58) | 0 | 71 | 2 | 21 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_first | generic | 100% (129/129) | 36% (47/129) | 62% (29/47) | 0 | 82 | 0 | 18 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_first | reuse | 100% (129/129) | 58% (75/129) | 67% (50/75) | 0 | 54 | 0 | 25 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_last | generic | 100% (129/129) | 36% (47/129) | 70% (33/47) | 0 | 82 | 0 | 14 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_last | reuse | 100% (129/129) | 43% (55/129) | 71% (39/55) | 0 | 74 | 1 | 16 | 0 |
+
+
+## Retrieval of the helper (BM25)
+
+| model | condition | instruction | n | recall@k | MRR |
+|---|---|---|---|---|---|
+| deepseek-coder-6.7b-instruct | bm25 | generic | 129 | 76% (98/129) | 0.58 |
+| deepseek-coder-6.7b-instruct | bm25 | reuse | 129 | 76% (98/129) | 0.58 |
+
+pushed results/deepseek67b-v1
+experiment 'position' done
+=== 2026-10-25 08:59:08 stopped with exit code 0
