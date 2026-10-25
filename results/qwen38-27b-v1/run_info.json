@@ -1,0 +1,26 @@
+{
+  "run": "qwen38-27b-v1",
+  "model": "RedHatAI/Qwen3.8-27B-INT4",
+  "extra_args": "--backend vllm --conditions none,bm25,oracle,file,oracle_first,oracle_last --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 --no-thinking --text-only --enforce-eager",
+  "gpu": "NVIDIA RTX A5000, 24564 MiB",
+  "code_commit": "9259ff7bed85124a077e480b2b6d0373d3f09ff5",
+  "started": "2026-10-25 14:21:50",
+  "continued": [
+    {
+      "run": "qwen38-27b-v1",
+      "model": "RedHatAI/Qwen3.8-27B-INT4",
+      "extra_args": "--backend vllm --conditions none,bm25,oracle,file,oracle_first,oracle_last --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 --no-thinking --text-only --enforce-eager",
+      "gpu": "NVIDIA RTX A5000, 24564 MiB",
+      "code_commit": "77215442748c36bee077c0dd7b23436acc4c0167",
+      "started": "2026-10-25 16:36:22"
+    },
+    {
+      "run": "qwen38-27b-v1",
+      "model": "RedHatAI/Qwen3.8-27B-INT4",
+      "extra_args": "--backend vllm --conditions none,bm25,oracle,file,oracle_first,oracle_last --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 --no-thinking --text-only --enforce-eager --kv-cache-dtype bfloat16",
+      "gpu": "NVIDIA RTX A5000, 24564 MiB",
+      "code_commit": "f611f982afb7ea4bb0c4e6698356901ae9c962e2",
+      "started": "2026-10-25 17:10:41"
+    }
+  ]
+}
