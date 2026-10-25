@@ -1,8 +1,0 @@
-{
-  "run": "--limit",
-  "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
-  "extra_args": "1 --backend hf",
-  "gpu": "NVIDIA RTX A5000, 24564 MiB",
-  "code_commit": "7caae64ca3b6d634060da8f1cba36e0bd42055b9",
-  "started": "2026-10-23 19:06:10"
-}
