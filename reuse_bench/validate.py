@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import resource
 import shutil
 import subprocess
 import sys
@@ -10,6 +11,16 @@ import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
+
+# Address-space cap for each test run: a generated edit that builds an infinite list (e.g. list() over
+# zip_longest(seq, repeat(x))) then fails with MemoryError instead of exhausting the machine's RAM,
+# which had the kernel kill the whole evaluation on the GPU server.
+MEMORY_LIMIT = 4 * 1024 ** 3
+
+
+def _limit_memory() -> None:
+    resource.setrlimit(resource.RLIMIT_AS, (MEMORY_LIMIT, MEMORY_LIMIT))
+
 
 IGNORE = shutil.ignore_patterns(".git", "__pycache__", ".venv", "venv", ".tox", ".nox",
                                 ".pytest_cache", ".mypy_cache", "*.pyc")
@@ -52,7 +63,7 @@ class Sandbox:
         start = time.monotonic()
         try:
             proc = subprocess.run(cmd, cwd=self.root, env=self._env(), capture_output=True,
-                                  text=True, timeout=self.timeout)
+                                  text=True, timeout=self.timeout, preexec_fn=_limit_memory)
         except subprocess.TimeoutExpired:
             return TestResult(False, time.monotonic() - start, "timeout")
         output = (proc.stdout + proc.stderr)[-2000:]
