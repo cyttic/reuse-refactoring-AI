@@ -15,6 +15,9 @@ DEEPSEEK=deepseek-ai/deepseek-coder-6.7b-instruct
 # 4-bit checkpoints of the 2025-26 models (bf16 does not fit the 24 GB A5000); need scripts/setup_vllm.sh
 QWEN3_CODER=cyankiwi/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit
 QWEN38=RedHatAI/Qwen3.8-27B-INT4
+# Qwen3.8's checkpoint asks for an fp8 KV cache; on the A5000 (Ampere) only FlashInfer supports that,
+# and FlashInfer compiles with nvcc, which this server lacks. A bf16 cache uses vLLM's prebuilt FlashAttention.
+QWEN38_ARGS="--no-thinking --text-only --enforce-eager --kv-cache-dtype bfloat16"
 ALL_CONDITIONS=none,bm25,oracle,file,oracle_first,oracle_last
 
 run() {     # run <model> <run name> [extra args for reuse_bench.generate]
@@ -42,10 +45,10 @@ experiment() {
             run "$DEEPSEEK" deepseek67b-v1 --conditions oracle_first,oracle_last ;;
         setup-vllm) bash scripts/setup_vllm.sh ;;
         qwen3coder) run_vllm "$QWEN3_CODER" qwen3coder30b-v1 ;;
-        qwen38)     run_vllm "$QWEN38" qwen38-27b-v1 --no-thinking --text-only --enforce-eager ;;
+        qwen38)     run_vllm "$QWEN38" qwen38-27b-v1 $QWEN38_ARGS ;;
         new-models) # both 2025-26 models, one after the other
             run_vllm "$QWEN3_CODER" qwen3coder30b-v1
-            run_vllm "$QWEN38" qwen38-27b-v1 --no-thinking --text-only --enforce-eager ;;
+            run_vllm "$QWEN38" qwen38-27b-v1 $QWEN38_ARGS ;;
         *) return 1 ;;
     esac
 }

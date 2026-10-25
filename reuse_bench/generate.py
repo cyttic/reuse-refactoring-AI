@@ -31,6 +31,8 @@ class VLLMBackend:
         if args.text_only:
             # Multimodal checkpoints (e.g. Qwen3.8): reserve no memory for images or video.
             extra["limit_mm_per_prompt"] = {"image": 0, "video": 0}
+        if args.kv_cache_dtype:
+            extra["kv_cache_dtype"] = args.kv_cache_dtype
         self.llm = LLM(model=args.model, max_model_len=args.max_model_len, seed=args.seed,
                        gpu_memory_utilization=args.gpu_memory_utilization,
                        quantization=args.quantization, enforce_eager=args.enforce_eager,
@@ -132,6 +134,8 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--no-thinking", action="store_true", help="disable thinking mode (Qwen3.x chat templates)")
     parser.add_argument("--text-only", action="store_true", help="multimodal checkpoint: no image/video memory")
     parser.add_argument("--enforce-eager", action="store_true", help="vLLM: no CUDA graphs (saves ~1 GB GPU memory)")
+    parser.add_argument("--kv-cache-dtype", help="vLLM: e.g. bfloat16 to override a checkpoint's fp8 KV cache "
+                        "(fp8 KV on Ampere GPUs needs FlashInfer, which compiles with nvcc)")
     parser.add_argument("--no-system-prompt", action="store_true", help="for chat templates without a system role")
     parser.add_argument("--chunk", type=int, default=64, help="prompts per batch written to disk")
     parser.add_argument("--dry-run", action="store_true", help="build prompts only, no model")
