@@ -33,7 +33,7 @@ run_vllm() {    # same, generating with vLLM from ~/env-vllm
     # instead); vLLM manages GPU memory itself, so the HF backend's allocator setting is left out.
     VLLM_USE_FLASHINFER_SAMPLER=0 PYTORCH_CUDA_ALLOC_CONF= GEN_PY=$HOME/env-vllm/bin/python \
         bash scripts/run_experiment.sh "$1" "$2" --backend vllm \
-        --conditions "$ALL_CONDITIONS" --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 "${@:3}"
+        --conditions "${CONDITIONS:-$ALL_CONDITIONS}" --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 "${@:3}"
 }
 
 experiment() {
@@ -49,6 +49,9 @@ experiment() {
         new-models) # both 2025-26 models, one after the other
             run_vllm "$QWEN3_CODER" qwen3coder30b-v1
             run_vllm "$QWEN38" qwen38-27b-v1 $QWEN38_ARGS ;;
+        renamed)    # contamination check: helper under a neutral name in the prompt, main conditions
+            CONDITIONS=none,bm25,oracle,file run_vllm "$QWEN3_CODER" qwen3coder30b-renamed --rename-helper
+            CONDITIONS=none,bm25,oracle,file run_vllm "$QWEN38" qwen38-27b-renamed $QWEN38_ARGS --rename-helper ;;
         *) return 1 ;;
     esac
 }
@@ -66,6 +69,8 @@ usage: ./run.sh <experiment>
   qwen3coder  Qwen3-Coder-30B-A3B (4-bit), all six conditions, vLLM
   qwen38      Qwen3.8-27B (4-bit, thinking off), all six conditions, vLLM
   new-models  qwen3coder, then qwen38
+  renamed     contamination check: both new models with the helper
+              renamed in the prompt (~15 min + ~2.5 h)
 
 Finished parts are skipped, so re-running the same experiment resumes it.
 EOF

@@ -67,6 +67,14 @@ def summarize(rows: list[dict]) -> str:
                               pct(sum(rk is not None for rk in ranks), len(rs)),
                               f"{sum(1 / rk for rk in ranks if rk) / len(rs):.2f}"])
 
+    renamed = []
+    for key in keys:
+        rs = [r for r in groups[key] if r.get("renamed")]
+        if rs:
+            renamed.append([*key, str(len(rs)),
+                            pct(sum(r["reuse_helper"] for r in rs), len(rs)),
+                            pct(sum(r["uses_original_name"] for r in rs), len(rs))])
+
     out = ["## Overall\n",
            "*compliant*: signature kept and no existing code redefined (violations are dropped before "
            "testing); *valid*: tests pass and compliant; *reuses any*: calls the target helper or another "
@@ -85,6 +93,12 @@ def summarize(rows: list[dict]) -> str:
     if retrieval:
         out += ["\n## Retrieval of the helper (BM25)\n",
                 table(["model", "condition", "instruction", "n", "recall@k", "MRR"], retrieval)]
+    if renamed:
+        out += ["\n## Contamination check: helper renamed in the prompt\n",
+                "*uses original name*: the output names the helper as in the real repository although "
+                "the prompt only showed the neutral name, i.e. from memory (counted as not reusing).\n",
+                table(["model", "condition", "instruction", "n", "reuses helper (shown name)",
+                       "uses original name"], renamed)]
     return "\n".join(out)
 
 

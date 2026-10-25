@@ -137,6 +137,9 @@ def main(argv: list[str] | None = None) -> None:
     parser.add_argument("--kv-cache-dtype", help="vLLM: e.g. bfloat16 to override a checkpoint's fp8 KV cache "
                         "(fp8 KV on Ampere GPUs needs FlashInfer, which compiles with nvcc)")
     parser.add_argument("--no-system-prompt", action="store_true", help="for chat templates without a system role")
+    parser.add_argument("--rename-helper", action="store_true",
+                        help="contamination check: show the helper under a neutral name (tasks whose helper "
+                             "name is not unique are skipped)")
     parser.add_argument("--chunk", type=int, default=64, help="prompts per batch written to disk")
     parser.add_argument("--dry-run", action="store_true", help="build prompts only, no model")
     args = parser.parse_args(argv)
@@ -150,21 +153,28 @@ def main(argv: list[str] | None = None) -> None:
 
     indexes: dict[str, RepoIndex] = {}
     jobs = []
+    not_renamable = 0
     for task in tasks:
         repo_root = args.repos_dir / task["repo"]
         if task["repo"] not in indexes:
             indexes[task["repo"]] = RepoIndex.build(repo_root)
         ctx = TaskContext(task, repo_root, indexes[task["repo"]])
+        if args.rename_helper and ctx.rename is None:
+            not_renamable += 1
+            continue
         for condition in conditions:
             for instruction in instructions:
                 if (task["id"], condition, instruction) in done:
                     continue
                 messages, meta = build_prompt(ctx, condition, instruction, args.k, args.max_file_chars,
-                                              system_prompt=not args.no_system_prompt)
+                                              system_prompt=not args.no_system_prompt,
+                                              rename_helper=args.rename_helper)
                 jobs.append(({"task_id": task["id"], "condition": condition, "instruction": instruction,
                               "model": args.model, **meta,
                               "prompt_sha256": hashlib.sha256(json.dumps(messages).encode()).hexdigest()},
                              messages))
+    if args.rename_helper:
+        print(f"{not_renamable} tasks skipped: helper name not unique or common")
     print(f"{len(tasks)} tasks, {len(jobs)} prompts to generate ({len(done)} already done)")
     if args.dry_run or not jobs:
         if jobs:

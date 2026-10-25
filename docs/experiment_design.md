@@ -39,6 +39,18 @@ Each task: a target function `F` that duplicates logic already implemented by he
 ### 3.3 Contamination control
 Report results separately for repos created after the evaluated models' training cutoffs.
 
+**Renaming check (`--rename-helper`, `./run.sh renamed`).** All 12 repos are public and older than the
+models, so a model may reuse the helper because it remembers the original caller rather than because it
+read the context. Each prompt shows the helper under a neutral name (`fn_<hash>`, keeping leading
+underscores) everywhere — snippets, whole file, imports; repo, retrieval ranking and tests are unchanged,
+so results pair task-by-task with the normal runs. In the output the neutral name is mapped back before
+testing; the *original* name never appeared in the prompt, so any use of it comes from memory: it is
+reported (`uses_original_name`) and broken, as it would be in a really renamed repo. 114 of 129 tasks
+qualify (15 helpers are skipped because their name is not unique in the repo or also names a builtin /
+stdlib function, e.g. `escape`, `parse`, `update`, `concat`). Reading: a drop in reuse with the helper in
+context = reliance on the name (memory or naming cues); uses of the original name = direct memorisation;
+Qwen3-Coder runs as the control for how much any model loses from neutral names alone.
+
 ## 4. Experimental conditions
 
 All retrieval conditions share the **same base context**: the module's imports plus the target

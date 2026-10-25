@@ -7,8 +7,24 @@ through retrieval. `file` shows the whole module instead, as a realistic referen
 from __future__ import annotations
 
 import ast
+import builtins
+import collections
+import functools
+import hashlib
+import html
+import io
+import itertools
 import json
+import keyword
+import operator
+import os
 import random
+import re
+import string
+import sys
+import textwrap
+import types
+import typing
 from pathlib import Path
 
 from .index import RepoIndex
@@ -27,6 +43,28 @@ INSTRUCTIONS = {
 CONDITIONS = ("none", "bm25", "oracle", "file")
 # Position ablation (opt-in via --conditions): the oracle snippets with the helper first or last.
 POSITION_CONDITIONS = ("oracle_first", "oracle_last")
+
+
+# Helper names that also mean something else (builtins, methods of common types, stdlib functions)
+# cannot be renamed by text substitution without renaming those too.
+COMMON_NAMES = set(dir(builtins)) | set(keyword.kwlist) | {
+    name for obj in (str, bytes, list, dict, set, tuple, int, float, object, io.StringIO, io.BytesIO,
+                     collections, functools, html, itertools, json, operator, os, os.path, re, string, sys,
+                     textwrap, types, typing)
+    for name in dir(obj)}
+
+
+def rename_identifier(text: str, old: str, new: str) -> str:
+    return re.sub(rf"(?<!\w){re.escape(old)}(?!\w)", new, text)
+
+
+def restore_identifier(output: str, old: str, new: str) -> tuple[str, bool]:
+    """Map a renamed helper back to its real name in a model output. The original name never appeared
+    in the prompt, so any use of it comes from memory: such uses are broken (as they would be in a
+    renamed repository) and reported."""
+    from_memory = rename_identifier(output, old, "") != output
+    output = rename_identifier(output, old, old + "_not_in_prompt")
+    return rename_identifier(output, new, old), from_memory
 
 
 def load_tasks(paths: list[Path]) -> list[dict]:
@@ -58,6 +96,12 @@ class TaskContext:
         target = f"{module}.{task['caller_qualname']}"
         self.snippets = [s for s in repo_snippets(index) if s.origin != target]
         self._bm25: BM25 | None = None
+        # Contamination check: (old, new) helper name for prompts with the helper renamed, or None when the
+        # name is not unique in the repository or also names something common.
+        name = task["helper_qualname"].rpartition(".")[2]
+        definers = sum(name in m.functions for m in index.modules.values()) + index.method_definers(name)
+        new = name[: len(name) - len(name.lstrip("_"))] + "fn_" + hashlib.sha1(task["id"].encode()).hexdigest()[:6]
+        self.rename = (name, new) if definers == 1 and name not in COMMON_NAMES else None
 
     def _ranking(self) -> list[int]:
         if self._bm25 is None:
@@ -108,7 +152,7 @@ class TaskContext:
 
 
 def build_prompt(ctx: TaskContext, condition: str, instruction: str, k: int, max_file_chars: int,
-                 system_prompt: bool = True) -> tuple[list[dict], dict]:
+                 system_prompt: bool = True, rename_helper: bool = False) -> tuple[list[dict], dict]:
     task = ctx.task
     qualname, path = task["caller_qualname"], task["caller_file"]
     kind = "method" if "." in qualname else "function"
@@ -145,6 +189,10 @@ def build_prompt(ctx: TaskContext, condition: str, instruction: str, k: int, max
         parts += [f"From `{s.path}`:\n```python\n{s.source}```" for s in snippets]
     parts.append(f"{code_title}:\n```python\n{code}```")
     user = "\n\n".join(parts)
+    if rename_helper:   # the helper appears under a neutral name everywhere in the prompt
+        if ctx.rename is None:
+            raise ValueError(f"helper of {task['id']} cannot be renamed")
+        user = rename_identifier(user, *ctx.rename)
 
     messages = [{"role": "system", "content": SYSTEM}, {"role": "user", "content": user}] if system_prompt \
         else [{"role": "user", "content": SYSTEM + "\n\n" + user}]
@@ -157,4 +205,6 @@ def build_prompt(ctx: TaskContext, condition: str, instruction: str, k: int, max
         "file_truncated": truncated,
         "prompt_chars": len(user),
     }
+    if rename_helper:
+        meta["renamed"] = list(ctx.rename)
     return messages, meta

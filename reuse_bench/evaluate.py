@@ -16,7 +16,7 @@ from pathlib import Path
 from .edit import EditError, apply_edit
 from .index import Module, RepoIndex, collect_bindings
 from .patching import apply_patch
-from .prompting import find_function, load_tasks
+from .prompting import find_function, load_tasks, restore_identifier
 from .retrieval import equivalent_helpers, repo_snippets
 from .validate import Sandbox
 
@@ -99,10 +99,15 @@ def main(argv: list[str] | None = None) -> None:
                 record = {k: gen[k] for k in ("task_id", "condition", "instruction", "model",
                                               "helper_in_context", "helper_rank", "file_truncated")}
                 record.update(repo=repo, helper_same_module=task["helper_same_module"])
+                output = gen["output"]
+                if gen.get("renamed"):
+                    old, new = gen["renamed"]
+                    output, from_memory = restore_identifier(output, old, new)
+                    record.update(renamed=gen["renamed"], uses_original_name=from_memory)
                 try:
                     if gen.get("error"):
                         raise EditError(gen["error"])   # generation itself failed, e.g. out of GPU memory
-                    new_source, info = apply_edit(mutated, task["caller_qualname"], gen["output"], module_name)
+                    new_source, info = apply_edit(mutated, task["caller_qualname"], output, module_name)
                 except EditError as exc:
                     record.update(applied=False, error=str(exc), tests_pass=False, reuse_helper=False,
                                   reuse_any=False, compliant=False)

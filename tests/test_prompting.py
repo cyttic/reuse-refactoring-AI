@@ -3,7 +3,7 @@ from collections import Counter
 from reuse_bench.build import make_task
 from reuse_bench.index import RepoIndex
 from reuse_bench.inline import Limits, find_sites, inline
-from reuse_bench.prompting import TaskContext, build_prompt
+from reuse_bench.prompting import TaskContext, build_prompt, restore_identifier
 
 from test_inline import write_repo
 
@@ -63,3 +63,28 @@ def test_position_ablation_moves_only_the_helper(tmp_path):
     assert {s.origin for s in first} == {s.origin for s in last} == {s.origin for s in random_order}
     _, meta = build_prompt(ctx, "oracle_last", "generic", k=2, max_file_chars=10_000)
     assert meta["helper_rank"] == 2 and meta["helper_in_context"]
+
+
+def test_renamed_helper_never_shows_its_real_name(tmp_path):
+    ctx = context(tmp_path)
+    old, new = ctx.rename
+    assert old == "normalize" and new.startswith("fn_")
+    for condition in ("none", "oracle", "file"):
+        messages, meta = build_prompt(ctx, condition, "reuse", k=2, max_file_chars=10_000, rename_helper=True)
+        text = messages[-1]["content"]
+        assert "normalize" not in text and meta["renamed"] == [old, new]
+        assert (f"def {new}(" in text) == meta["helper_in_context"]
+
+
+def test_common_or_duplicated_helper_names_are_not_renamed(tmp_path):
+    index = write_repo(tmp_path, {"pkg/__init__.py": "", "pkg/m.py": MODULE.replace("normalize", "update")})
+    site = next(s for s in find_sites(index) if s.caller_qualname == "make_key")
+    task = make_task(tmp_path, None, inline(index, site, Limits(min_helper_size=1)), Counter())
+    assert TaskContext(task, tmp_path, RepoIndex.build(tmp_path)).rename is None
+
+
+def test_output_names_are_restored_and_remembered_names_broken():
+    output, from_memory = restore_identifier("x = fn_1(a)\ny = fn_1_b(a)", "normalize", "fn_1")
+    assert output == "x = normalize(a)\ny = fn_1_b(a)" and not from_memory
+    output, from_memory = restore_identifier("x = self.normalize(a)", "normalize", "fn_1")
+    assert output == "x = self.normalize_not_in_prompt(a)" and from_memory
