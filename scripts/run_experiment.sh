@@ -5,7 +5,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 export PATH="$HOME/.local/bin:$PATH"
-export PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True   # less fragmentation on long prompts
+export PYTORCH_CUDA_ALLOC_CONF=${PYTORCH_CUDA_ALLOC_CONF-expandable_segments:True}   # HF backend: less fragmentation
 export PYTHONUNBUFFERED=1   # otherwise progress lines sit in a buffer when piped through tee
 
 MODEL=${1:?usage: $0 MODEL RUN_NAME [extra args for reuse_bench.generate]}

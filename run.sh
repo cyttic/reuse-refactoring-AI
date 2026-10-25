@@ -6,6 +6,7 @@
 #   ./run.sh position        run one of them
 #   tmux attach -t position  reattach after a disconnect (detach again: Ctrl-b, then d)
 #   tail -50 logs/position.log   what the run printed, even after the window closed
+#   (a failed run pushes logs/ to GitHub by itself; bash scripts/push_logs.sh does it by hand)
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -25,7 +26,10 @@ run_vllm() {    # same, generating with vLLM from ~/env-vllm
         echo "vLLM environment missing: run ./run.sh setup-vllm first"
         return 1
     fi
-    GEN_PY=$HOME/env-vllm/bin/python bash scripts/run_experiment.sh "$1" "$2" --backend vllm \
+    # The FlashInfer sampler JIT-compiles with nvcc, which this server lacks (vLLM's own sampler is used
+    # instead); vLLM manages GPU memory itself, so the HF backend's allocator setting is left out.
+    VLLM_USE_FLASHINFER_SAMPLER=0 PYTORCH_CUDA_ALLOC_CONF= GEN_PY=$HOME/env-vllm/bin/python \
+        bash scripts/run_experiment.sh "$1" "$2" --backend vllm \
         --conditions "$ALL_CONDITIONS" --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 "${@:3}"
 }
 
@@ -84,6 +88,12 @@ fi
 mkdir -p logs
 exec > >(tee -a "logs/$NAME.log") 2>&1
 echo "=== $(date '+%Y-%m-%d %H:%M:%S') starting '$NAME' (code $(git rev-parse --short HEAD))"
-trap 'echo "=== $(date "+%Y-%m-%d %H:%M:%S") stopped with exit code $?"' EXIT
+on_exit() {
+    local code=$1
+    echo "=== $(date "+%Y-%m-%d %H:%M:%S") stopped with exit code $code"
+    # A failed run pushes nothing else; push the log so the error can be read on GitHub.
+    [ "$code" -eq 0 ] || bash scripts/push_logs.sh || echo "could not push logs"
+}
+trap 'on_exit $?' EXIT
 experiment "$NAME"
 echo "experiment '$NAME' done"
