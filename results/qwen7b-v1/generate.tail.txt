@@ -1,4 +1,3 @@
-    prompt 32/64: 3741 tokens in, 486 out, 14s
     prompt 33/64: 3026 tokens in, 319 out, 9s
     prompt 34/64: 3044 tokens in, 303 out, 9s
     prompt 35/64: 3026 tokens in, 275 out, 8s
@@ -297,4 +296,5 @@
     prompt 3/4: 1920 tokens in, 154 out, 4s
     prompt 4/4: 1938 tokens in, 153 out, 4s
   516/516 prompts (17s for this chunk)
+129 tasks, 0 prompts to generate (1548 already done)
 129 tasks, 0 prompts to generate (1548 already done)
