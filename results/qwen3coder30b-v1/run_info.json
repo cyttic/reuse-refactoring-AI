@@ -1,0 +1,18 @@
+{
+  "run": "qwen3coder30b-v1",
+  "model": "cyankiwi/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit",
+  "extra_args": "--backend vllm --conditions none,bm25,oracle,file,oracle_first,oracle_last --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95",
+  "gpu": "NVIDIA RTX A5000, 24564 MiB",
+  "code_commit": "d2e6d8219ca01dce6e62d5e1d05710d84e5e980f",
+  "started": "2026-10-25 10:07:52",
+  "continued": [
+    {
+      "run": "qwen3coder30b-v1",
+      "model": "cyankiwi/Qwen3-Coder-30B-A3B-Instruct-AWQ-4bit",
+      "extra_args": "--backend vllm --conditions none,bm25,oracle,file,oracle_first,oracle_last --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95",
+      "gpu": "NVIDIA RTX A5000, 24564 MiB",
+      "code_commit": "010523df38f07651939defc3741ad3acbce64bde",
+      "started": "2026-10-25 12:23:16"
+    }
+  ]
+}
