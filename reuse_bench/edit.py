@@ -8,7 +8,8 @@ import textwrap
 
 from .prompting import find_function
 
-CODE_BLOCK = re.compile(r"```[ \t]*(?:python|py|python3)?[ \t]*\n(.*?)```", re.S)
+# Any info string after the fence: models also write "```python code" or "```python code block".
+CODE_BLOCK = re.compile(r"```[^\n`]*\n(.*?)```", re.S)
 # Reasoning of thinking models; an unclosed block (token limit hit while thinking) is dropped to the end.
 THINKING = re.compile(r"<think>.*?(?:</think>|$)", re.S)
 FunctionNode = ast.FunctionDef | ast.AsyncFunctionDef
@@ -26,12 +27,33 @@ def extract_code(text: str, name: str) -> str:
             return block
     if blocks:
         return blocks[-1]
-    unclosed = re.search(r"```[ \t]*(?:python|py|python3)?[ \t]*\n(.*)$", text, re.S)
+    unclosed = re.search(r"```[^\n`]*\n(.*)$", text, re.S)
     if unclosed:
         return unclosed.group(1)    # output hit the token limit before the closing fence
     if re.search(rf"\bdef\s+{re.escape(name)}\s*\(", text):
         return text     # model answered without a code fence
     raise EditError("no code block in output")
+
+
+def _parse_block(code: str) -> tuple[str, ast.Module]:
+    try:
+        return code, ast.parse(code)
+    except SyntaxError as exc:
+        # A method copied out of its class sometimes loses only the indentation of its first line
+        # (the def or a comment above it); align that line with the rest and try again.
+        lines = code.splitlines(keepends=True)
+        body = [i for i, line in enumerate(lines) if line.strip()]
+        if len(body) < 2:
+            raise EditError("output does not parse") from exc
+        first, rest = body[0], min(len(lines[i]) - len(lines[i].lstrip()) for i in body[1:])
+        if len(lines[first]) - len(lines[first].lstrip()) >= rest:
+            raise EditError("output does not parse") from exc
+        lines[first] = " " * rest + lines[first].lstrip()
+        code = textwrap.dedent("".join(lines))
+        try:
+            return code, ast.parse(code)
+        except SyntaxError:
+            raise EditError("output does not parse") from exc
 
 
 def _first_line(node: ast.stmt) -> int:
@@ -88,11 +110,7 @@ def _is_method_like(node: ast.stmt) -> bool:
 def apply_edit(source: str, qualname: str, output: str, module_name: str | None = None) -> tuple[str, dict]:
     name = qualname.rpartition(".")[2]
     cls_name = qualname.rpartition(".")[0]
-    code = textwrap.dedent(extract_code(output, name))
-    try:
-        block = ast.parse(code)
-    except SyntaxError as exc:
-        raise EditError("output does not parse") from exc
+    code, block = _parse_block(textwrap.dedent(extract_code(output, name)))
     is_fn = lambda n: isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef)) and n.name == name
     defs = [n for n in block.body if is_fn(n)]
     wrapper = None

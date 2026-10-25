@@ -130,3 +130,15 @@ def test_thinking_is_ignored_even_when_unclosed():
     assert "    return x\n" in new and "pass" not in new
     with pytest.raises(EditError, match="no code block"):
         apply_edit(SOURCE, "target", "<think>```python\ndef target(x):\n    return x\n```")
+
+
+def test_fence_with_extra_words_after_the_language():
+    new, _ = apply_edit(SOURCE, "target", "```python code block\ndef target(x):\n    return x\n```")
+    assert "    return x\n" in new
+
+
+@pytest.mark.parametrize("first", ["def method(self, x):\n", "# comment\n    def method(self, x):\n"])
+def test_method_whose_first_line_lost_its_indentation(first):
+    output = "```python\n" + first + "        return x * 3\n\n    def other(self):\n        return 1\n```"
+    new, _ = apply_edit(SOURCE, "Box.method", output)
+    assert "        return x * 3\n" in new and "    def other(self):\n" in new

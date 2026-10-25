@@ -213,3 +213,29 @@ during evaluation; the last 23 outputs were evaluated locally.
   30/129), so condition differences must be tested per task (McNemar), not read off headline rates.
 - DeepSeek often renames the target function (“output does not define the function”, 61 outputs) —
   counted as not applied.
+- **Qwen3-Coder-30B-A3B (4-bit AWQ, vLLM) — `results/qwen3coder30b-v1` (2026-10-25)**, all six conditions.
+  Harness fix first: 86 outputs failed to parse because the model writes "```python code" fences or drops the
+  indentation of a copied method's first line; both are now handled (54 recovered; no change for the 7B runs).
+  Helper reused / valid (tests pass & compliant) out of 129:
+
+  | condition | generic: Qwen7B · DS6.7B · Q3-Coder | reuse: Qwen7B · DS6.7B · Q3-Coder |
+  |---|---|---|
+  | none | 1/63 · 5/46 · 3/117 | 4/56 · 7/48 · 7/116 |
+  | bm25 | 27/77 · 42/58 · 28/117 | 55/72 · 60/58 · 53/112 |
+  | oracle | 49/76 · 46/54 · 24/113 | 69/69 · 58/54 · 70/107 |
+  | oracle_first | 40/85 · 47/55 · 37/117 | 63/72 · 75/62 · 70/111 |
+  | oracle_last | 41/75 · 47/67 · 25/113 | 67/70 · 55/60 · 66/110 |
+  | file | 23/67 · 23/60 · 12/120 | 28/67 · 24/55 · 35/114 |
+
+  (1) **The larger, newer model is far more correct (valid 83–93% vs 42–66%) but does not reuse more**:
+  paired against Qwen7B, reuse differs significantly only where Qwen3-Coder reuses *less*
+  (oracle generic 10 vs 35, p = 0.0002; file generic 4 vs 15, p = 0.02). The reuse decision does not
+  improve with scale/recency. Because almost every reuse is also valid, valid & reused is still highest
+  for Qwen3-Coder (e.g. oracle reuse 66 vs 48 / 31).
+  (2) Without the reuse instruction it rarely reuses (19–29% with the helper guaranteed in context);
+  the instruction roughly doubles to triples reuse in every condition with context.
+  (3) Position: a primacy effect again, this time with the *generic* instruction (first 37 vs last 25;
+  14 vs 2 discordant, p = 0.004; first vs seeded random 15 vs 2, p = 0.002); none with the reuse instruction
+  (p = 0.59). So which instruction shows the position effect depends on the model.
+  (4) With the reuse instruction BM25 < oracle (53 vs 70, 6 vs 23 discordant, p = 0.002) — unlike DeepSeek;
+  the gap is the 31 tasks BM25 does not retrieve.
