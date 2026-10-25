@@ -13,6 +13,14 @@
       "gpu": "NVIDIA RTX A5000, 24564 MiB",
       "code_commit": "8e8cadaf5a20bbd0487d2648c9c20f3f9181f7ac",
       "started": "2026-10-25 01:11:39"
+    },
+    {
+      "run": "deepseek67b-v1",
+      "model": "deepseek-ai/deepseek-coder-6.7b-instruct",
+      "extra_args": "--backend hf --conditions oracle_first,oracle_last",
+      "gpu": "NVIDIA RTX A5000, 24564 MiB",
+      "code_commit": "82b94e346a3de5791488334d7be2b1ef9e688cdf",
+      "started": "2026-10-25 08:58:36"
     }
   ]
 }

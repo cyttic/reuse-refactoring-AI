@@ -12,6 +12,10 @@
 | deepseek-coder-6.7b-instruct | none | reuse | 129 | 89% (115/129) | 46% (59/129) | 64% (83/129) | 37% (48/129) | 5% (7/129) | 5% (7/129) | 1% (1/129) | 49% (63/129) | 1% (1/129) |
 | deepseek-coder-6.7b-instruct | oracle | generic | 129 | 96% (124/129) | 55% (71/129) | 72% (93/129) | 42% (54/129) | 36% (46/129) | 36% (47/129) | 18% (23/129) | 36% (46/129) | 2% (2/129) |
 | deepseek-coder-6.7b-instruct | oracle | reuse | 129 | 96% (124/129) | 53% (68/129) | 72% (93/129) | 42% (54/129) | 45% (58/129) | 47% (60/129) | 24% (31/129) | 40% (51/129) | 2% (3/129) |
+| deepseek-coder-6.7b-instruct | oracle_first | generic | 129 | 91% (117/129) | 53% (69/129) | 69% (89/129) | 43% (55/129) | 36% (47/129) | 36% (47/129) | 19% (25/129) | 29% (37/129) | 2% (2/129) |
+| deepseek-coder-6.7b-instruct | oracle_first | reuse | 129 | 96% (124/129) | 58% (75/129) | 75% (97/129) | 48% (62/129) | 58% (75/129) | 58% (75/129) | 32% (41/129) | 29% (38/129) | 2% (3/129) |
+| deepseek-coder-6.7b-instruct | oracle_last | generic | 129 | 96% (124/129) | 64% (82/129) | 76% (98/129) | 52% (67/129) | 36% (47/129) | 36% (47/129) | 24% (31/129) | 33% (43/129) | 1% (1/129) |
+| deepseek-coder-6.7b-instruct | oracle_last | reuse | 129 | 95% (123/129) | 59% (76/129) | 73% (94/129) | 47% (60/129) | 43% (55/129) | 43% (56/129) | 26% (34/129) | 34% (44/129) | 1% (1/129) |
 
 
 ## Reuse funnel
@@ -28,6 +32,10 @@ Stages: helper in context → helper called (given in context) → tests pass (g
 | deepseek-coder-6.7b-instruct | none | reuse | 0% (0/129) | – | – | 129 | 0 | 0 | 0 | 7 |
 | deepseek-coder-6.7b-instruct | oracle | generic | 100% (129/129) | 36% (46/129) | 59% (27/46) | 0 | 83 | 1 | 19 | 0 |
 | deepseek-coder-6.7b-instruct | oracle | reuse | 100% (129/129) | 45% (58/129) | 64% (37/58) | 0 | 71 | 2 | 21 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_first | generic | 100% (129/129) | 36% (47/129) | 62% (29/47) | 0 | 82 | 0 | 18 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_first | reuse | 100% (129/129) | 58% (75/129) | 67% (50/75) | 0 | 54 | 0 | 25 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_last | generic | 100% (129/129) | 36% (47/129) | 70% (33/47) | 0 | 82 | 0 | 14 | 0 |
+| deepseek-coder-6.7b-instruct | oracle_last | reuse | 100% (129/129) | 43% (55/129) | 71% (39/55) | 0 | 74 | 1 | 16 | 0 |
 
 
 ## Retrieval of the helper (BM25)
