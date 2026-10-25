@@ -4,5 +4,15 @@
   "extra_args": "--backend hf",
   "gpu": "NVIDIA RTX A5000, 24564 MiB",
   "code_commit": "48b379ec6ba7fb4bf3cc05e898205b8af7e48608",
-  "started": "2026-10-24 20:09:59"
+  "started": "2026-10-24 20:09:59",
+  "continued": [
+    {
+      "run": "deepseek67b-v1",
+      "model": "deepseek-ai/deepseek-coder-6.7b-instruct",
+      "extra_args": "--backend hf --conditions oracle_first,oracle_last",
+      "gpu": "NVIDIA RTX A5000, 24564 MiB",
+      "code_commit": "8e8cadaf5a20bbd0487d2648c9c20f3f9181f7ac",
+      "started": "2026-10-25 01:11:39"
+    }
+  ]
 }
