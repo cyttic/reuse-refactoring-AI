@@ -239,3 +239,20 @@ during evaluation; the last 23 outputs were evaluated locally.
   (p = 0.59). So which instruction shows the position effect depends on the model.
   (4) With the reuse instruction BM25 < oracle (53 vs 70, 6 vs 23 discordant, p = 0.002) — unlike DeepSeek;
   the gap is the 31 tasks BM25 does not retrieve.
+- **Qwen3.8-27B (INT4, vLLM, thinking off, bf16 KV cache) — `results/qwen38-27b-v1` (2026-10-25).**
+  Helper reused / valid out of 129, generic | reuse: none 7/116 | 16/119; bm25 64/119 | 96/119;
+  oracle 69/114 | 108/114; oracle_first 78/120 | 110/116; oracle_last 69/119 | 108/113; file 46/124 | 83/120.
+  (1) **A step change in reuse**, unlike Qwen3-Coder: paired against both Qwen3-Coder and Qwen7B it reuses
+  more in every condition with context (e.g. oracle reuse 41 vs 3 discordant tasks vs Qwen3-Coder,
+  p < 1e-8), while staying as correct (valid 88–96%). With the reuse instruction and the helper in context
+  it calls it in 84–90% of tasks; the decision stage stops being the bottleneck and retrieval
+  (BM25 misses 31 tasks; file context lacks the helper in 49) becomes the main loss.
+  So the earlier conclusion holds for coder models up to Qwen3-Coder-30B-A3B, not for the newest
+  general model — the paper should frame it as model-dependent, not "scale doesn't help".
+  (2) Even this model ignores a visible helper in ~half the tasks without the reuse instruction
+  (oracle generic 69/129) — the instruction effect remains large.
+  (3) Primacy effect again only with the generic instruction (first 78 vs last 69, 12 vs 3, p = 0.035);
+  none with the reuse instruction (near ceiling).
+  (4) Caveat — contamination: Qwen3.8 is the most recent model and the repos are public; it reuses the
+  helper without seeing it in 16/129 tasks (reuse instruction, `none`; 7 for Qwen3-Coder). Needs a check,
+  e.g. tasks from repos/commits after its training cutoff or renamed identifiers.
