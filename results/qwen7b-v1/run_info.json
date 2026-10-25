@@ -13,6 +13,14 @@
       "gpu": "NVIDIA RTX A5000, 24564 MiB",
       "code_commit": "0a2990a3e09e9ef53a3840ffda1a4eae2395bdd9",
       "started": "2026-10-24 23:33:06"
+    },
+    {
+      "run": "qwen7b-v1",
+      "model": "Qwen/Qwen2.5-Coder-7B-Instruct",
+      "extra_args": "--backend hf --conditions oracle_first,oracle_last",
+      "gpu": "NVIDIA RTX A5000, 24564 MiB",
+      "code_commit": "e67951075f7f280b4b5cd7b8627baa73bebb6fb2",
+      "started": "2026-10-25 08:04:47"
     }
   ]
 }
