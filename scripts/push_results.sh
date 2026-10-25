@@ -13,6 +13,6 @@ done
 
 git add "$DIR"
 git commit -q -m "Results: $(basename "$DIR") ($(hostname))" || echo "nothing new to commit"
-git pull -q --rebase
+git pull -q --rebase --autostash   # other uncommitted files must not block the push
 git push -q
 echo "pushed $DIR"
