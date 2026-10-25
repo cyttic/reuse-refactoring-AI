@@ -200,5 +200,15 @@ during evaluation; the last 23 outputs were evaluated locally.
   more with BM25 (helper mostly at rank 1) than with the oracle (seeded position): 57 vs 45 (reuse
   instruction). Qwen shows the opposite (49 vs 54). Tested with the `oracle_first` / `oracle_last` ablation
   (same snippets as `oracle`, only the helper's position changes).
+- **Position ablation result (2026-10-25)**, helper reused out of 129 (first / random / last):
+  Qwen generic 40 / 49 / 41, reuse 63 / 69 / 67 — no position effect (McNemar first vs last p = 1.0, 0.57).
+  DeepSeek generic 47 / 46 / 47 — none; **DeepSeek reuse 75 / 58 / 55 — strong primacy effect**
+  (25 tasks reused only when first vs 5 only when last, exact McNemar p = 0.0003; valid & reused 41 vs 34).
+  This explains DeepSeek's BM25 > oracle result: BM25 usually ranks the helper first (61 of 98 retrieved
+  tasks at rank 1), and on retrieved tasks `oracle_first` matches or beats BM25 (61 vs 57).
+  Implications: (1) the oracle upper bound must fix the helper's position (use `oracle_first`);
+  (2) the primacy effect appears only together with the reuse instruction;
+  (3) reordering identical snippets flips the outcome on ~20% of tasks (Qwen: 27/129, DeepSeek reuse:
+  30/129), so condition differences must be tested per task (McNemar), not read off headline rates.
 - DeepSeek often renames the target function (“output does not define the function”, 61 outputs) —
   counted as not applied.
