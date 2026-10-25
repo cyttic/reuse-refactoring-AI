@@ -5,6 +5,7 @@
 #   ./run.sh                 list the experiments
 #   ./run.sh position        run one of them
 #   tmux attach -t position  reattach after a disconnect (detach again: Ctrl-b, then d)
+#   tail -50 logs/position.log   what the run printed, even after the window closed
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -55,5 +56,10 @@ if [ "${2:-}" != "--inside" ]; then
     exec tmux new -s "$NAME" "bash ./run.sh $NAME --inside; echo; echo 'finished - press Enter to close'; read"
 fi
 
+# Keep everything this run prints, in case the tmux window is gone by the time you look.
+mkdir -p logs
+exec > >(tee -a "logs/$NAME.log") 2>&1
+echo "=== $(date '+%Y-%m-%d %H:%M:%S') starting '$NAME' (code $(git rev-parse --short HEAD))"
+trap 'echo "=== $(date "+%Y-%m-%d %H:%M:%S") stopped with exit code $?"' EXIT
 experiment "$NAME"
 echo "experiment '$NAME' done"
