@@ -15,6 +15,12 @@ RENAMED = [("Q3C-30B", "qwen3coder30b-v1", "qwen3coder30b-renamed"),
 CONDS = ["none", "bm25", "oracle", "file"]
 
 
+def rows_tex(lines: list[str]) -> str:
+    # The closing rule is part of the file: since LaTeX 2020, \input inside a tabular cannot be
+    # followed directly by \bottomrule.
+    return "\n".join(lines + [r"\bottomrule"]) + "\n"
+
+
 def load(run):
     return {(r["task_id"], r["condition"], r["instruction"]): r
             for r in map(json.loads, (ROOT / "results" / run / "metrics.jsonl").open())}
@@ -63,8 +69,9 @@ def main():
                              f"\\small({pct(sum(valid(r) for r in rs), len(rs))})")
             label = name if ins == "generic" else ""
             lines.append(f"{label} & {ins} & " + " & ".join(cells) + r" \\")
-        lines.append(r"\midrule" if run != MODELS[-1][1] else "")
-    (OUT / "main.tex").write_text("\n".join(lines) + "\n")
+        if run != MODELS[-1][1]:
+            lines.append(r"\midrule")
+    (OUT / "main.tex").write_text(rows_tex(lines))
 
     # Table 2: funnel with the helper guaranteed in context (oracle) and with BM25
     lines = []
@@ -79,7 +86,7 @@ def main():
                 broken = sum(not r["tests_pass"] for r in called)
                 cells.append(f"{len(rs) - len(in_ctx)}/{len(in_ctx) - len(called)}/{broken}/{len(called) - broken}")
         lines.append(f"{name} & " + " & ".join(cells) + r" \\")
-    (OUT / "funnel.tex").write_text("\n".join(lines) + "\n")
+    (OUT / "funnel.tex").write_text(rows_tex(lines))
 
     # Table 3: position ablation
     lines = []
@@ -96,7 +103,7 @@ def main():
             b = sum(last[t] and not first[t] for t in first)
             cells += [str(n["oracle_first"]), str(n["oracle"]), str(n["oracle_last"]), f"{a}/{b}", fmt_p(mcnemar(a, b))]
         lines.append(f"{name} & " + " & ".join(cells) + r" \\")
-    (OUT / "position.tex").write_text("\n".join(lines) + "\n")
+    (OUT / "position.tex").write_text(rows_tex(lines))
 
     # Table 4: renaming check
     lines = []
@@ -113,8 +120,9 @@ def main():
             lines.append(f"{label} & {ins} & " + " & ".join(cells) + r" \\")
         stats[f"{ren}_memorised"] = sum(r["uses_original_name"] for r in R.values())
         stats[f"{ren}_n"] = len(R)
-        lines.append(r"\midrule" if ren != RENAMED[-1][2] else "")
-    (OUT / "renamed.tex").write_text("\n".join(lines) + "\n")
+        if ren != RENAMED[-1][2]:
+            lines.append(r"\midrule")
+    (OUT / "renamed.tex").write_text(rows_tex(lines))
 
     # Pairwise model comparisons quoted in the text
     q7, q3c, q38 = data["qwen7b-v1"], data["qwen3coder30b-v1"], data["qwen38-27b-v1"]

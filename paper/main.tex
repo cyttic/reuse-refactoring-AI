@@ -11,6 +11,7 @@
 \usepackage{inconsolata}
 \usepackage{booktabs}
 \usepackage{multirow}
+\usepackage{graphicx}
 
 \newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
 
@@ -153,13 +154,12 @@ at most 2{,}048 new tokens, and a single 24\,GB GPU; each model answers 1{,}032 
 \begin{table}[t]
 \centering
 \small
-\setlength{\tabcolsep}{4pt}
+\setlength{\tabcolsep}{3.5pt}
 \begin{tabular}{llcccc}
 \toprule
 Model & Instr. & \textsc{none} & \textsc{bm25} & \textsc{oracle} & \textsc{file} \\
 \midrule
 \input{tables/main.tex}
-\bottomrule
 \end{tabular}
 \caption{Helper reuse in \% of 129 tasks (valid outputs in \% in parentheses).}
 \label{tab:main}
@@ -169,14 +169,14 @@ Model & Instr. & \textsc{none} & \textsc{bm25} & \textsc{oracle} & \textsc{file}
 \centering
 \small
 \setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{lcccc}
 \toprule
 & \multicolumn{2}{c}{\textsc{bm25}} & \multicolumn{2}{c}{\textsc{oracle}} \\
 Model & generic & reuse & generic & reuse \\
 \midrule
 \input{tables/funnel.tex}
-\bottomrule
-\end{tabular}
+\end{tabular}}
 \caption{Reuse funnel over 129 tasks: not in context / ignored / broken / success.}
 \label{tab:funnel}
 \end{table}
@@ -220,7 +220,6 @@ reuse significantly more than Q2.5C-7B in any condition; with \textsc{oracle} an
 Model & first & random & last & first/last only & $p$ & first & random & last & first/last only & $p$ \\
 \midrule
 \input{tables/position.tex}
-\bottomrule
 \end{tabular}
 \caption{Tasks (of 129) where the helper is reused when placed first, at a seeded random position, or last among
 the five \textsc{oracle} snippets; discordant tasks and exact McNemar $p$ for first vs.\ last.}
@@ -243,13 +242,13 @@ task rather than read from aggregate rates.
 \centering
 \small
 \setlength{\tabcolsep}{3pt}
+\resizebox{\columnwidth}{!}{%
 \begin{tabular}{llccc}
 \toprule
 Model & Instr. & \textsc{bm25} & \textsc{oracle} & \textsc{file} \\
 \midrule
 \input{tables/renamed.tex}
-\bottomrule
-\end{tabular}
+\end{tabular}}
 \caption{Helper reused (of 114 tasks) with the original name $\to$ with a neutral name in the prompt
 (McNemar $p$).}
 \label{tab:renamed}
