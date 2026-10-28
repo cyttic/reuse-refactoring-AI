@@ -268,3 +268,29 @@ during evaluation; the last 23 outputs were evaluated locally.
   (4) Caveat — contamination: Qwen3.8 is the most recent model and the repos are public; it reuses the
   helper without seeing it in 16/129 tasks (reuse instruction, `none`; 7 for Qwen3-Coder). Needs a check,
   e.g. tasks from repos/commits after its training cutoff or renamed identifiers.
+- **Renaming check (2026-10-28) — `results/qwen3coder30b-renamed`, `results/qwen38-27b-renamed`**, 114 tasks,
+  paired with the same tasks of the normal runs. Helper reused, normal → renamed (lost / gained, McNemar):
+
+  | instruction, condition | Qwen3-Coder | Qwen3.8 |
+  |---|---|---|
+  | generic, none | 3 → 2 | 6 → 2 |
+  | generic, bm25 | 23 → 9 (−14/+0, p = 0.0001) | 56 → 22 (−35/+1, p < 1e-8) |
+  | generic, oracle | 19 → 12 (−9/+2, p = 0.07) | 61 → 33 (−29/+1, p < 1e-7) |
+  | generic, file | 11 → 8 (−6/+3, p = 0.5) | 39 → 21 (−18/+0, p < 1e-5) |
+  | reuse, none | 6 → 2 | 13 → 2 (−11/+0, p = 0.001) |
+  | reuse, bm25 | 46 → 36 (−14/+4, p = 0.03) | 83 → 62 (−21/+0, p < 1e-6) |
+  | reuse, oracle | 59 → 46 (−16/+3, p = 0.004) | 96 → 82 (−15/+1, p = 0.0005) |
+  | reuse, file | 29 → 22 (−12/+5, p = 0.14) | 70 → 59 (−12/+1, p = 0.003) |
+
+  (1) Neutral names cost **both** models reuse, by similar *relative* amounts (bm25 generic −61% for both;
+  oracle reuse −22% Qwen3-Coder vs −15% Qwen3.8) — so most of the drop is the loss of the descriptive name
+  as a cue, not Qwen3.8-specific memory. Validity is unchanged (±5).
+  (2) Direct memorisation is rare: outputs using the never-shown original name — Qwen3.8 18 / 912,
+  Qwen3-Coder 5 / 912, almost all private sibling methods (`self._parse_key`, `self._expect`,
+  pycparser `_parse_*`). Without context, reuse falls to 2 / 114 for both: the earlier `none` reuse came
+  from names visible in imports plus guessable/remembered sibling methods.
+  (3) Qwen3.8's lead survives renaming: it still reuses far more than Qwen3-Coder in every condition with
+  context (e.g. oracle reuse 82 vs 46, 37 vs 1 discordant, p < 1e-9; oracle generic 33 vs 12, 23 vs 2).
+  So the model difference is not explained by contamination.
+  (4) New finding for the paper: **helper names are a major reuse cue** — with the same code in context,
+  a non-descriptive name roughly halves reuse without the reuse instruction (and cuts it 15–25% with it).
