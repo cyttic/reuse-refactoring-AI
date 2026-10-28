@@ -1,0 +1,293 @@
+% Draft, 2026-10-28. All numbers come from results/ via paper/make_tables.py (tables in paper/tables/,
+% numbers quoted in the text in paper/tables/stats.json). Re-run that script after any re-evaluation.
+\documentclass[11pt]{article}
+
+\usepackage[preprint]{acl}
+\usepackage{times}
+\usepackage{latexsym}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{microtype}
+\usepackage{inconsolata}
+\usepackage{booktabs}
+\usepackage{multirow}
+
+\newcommand{\todo}[1]{\textcolor{red}{[TODO: #1]}}
+
+\title{Retrieved but Ignored: Where LLMs Lose Code Reuse When Refactoring}
+
+\author{Evgenii Lialin \and Roman Vikhman \\
+  \todo{affiliation} \\
+  \texttt{\todo{emails}}}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+When language models refactor code, they often re-implement logic that the repository already provides.
+We ask where such reuse opportunities are lost: in retrieving the existing helper, in the model's decision
+to call it, or in the edit itself. We build a benchmark of 129 test-validated reuse tasks from 12 Python
+repositories by inlining a helper into one of its callers, so that the original caller is a known reference.
+We then vary the context (none, BM25 snippets, the helper guaranteed among distractors, the whole module)
+and the instruction (generic vs.\ explicit reuse) for four open models.
+For three of the four models, the decision is the main bottleneck: even with the helper guaranteed in context
+and a generic instruction, they ignore it in 62--81\% of tasks, while BM25 misses it in only 24\%.
+An explicit reuse instruction raises reuse in every condition, by up to 2.8$\times$.
+A newer coder model (Qwen3-Coder-30B-A3B) produces far more correct code than 7B models but does not reuse more;
+only the newest general model (Qwen3.8-27B) does. Reuse also depends on where the helper appears
+in the context and on its name: showing the helper under a neutral name lowers reuse substantially,
+while direct memorisation of the original code is rare.
+\end{abstract}
+
+\section{Introduction}
+
+Code assistants increasingly edit existing repositories rather than write code from scratch.
+A well-known weakness is that they duplicate functionality the project already has:
+AI-generated pull requests contain more redundant code than human ones \citep{huang2026codereuseinvestigatingcode},
+and pretrained models frequently re-implement repository dependencies instead of calling them
+\citep{hai-etal-2025-impacts}. Duplicated logic is a maintenance cost that tests do not reveal.
+
+Refactoring benchmarks evaluate whether edits preserve behaviour or match human refactorings
+\citep{xu2026swerefactorrepositorylevelbenchmarkrealworld,gautam2025refactorbenchevaluatingstatefulreasoning,thillen2026codetastellmsgeneratehumanlevel},
+and retrieval-augmented systems supply repository context for completion, repair and refactoring
+\citep{zhang-etal-2025-coderag,xiong-etal-2025-think,xu2025mantraenhancingautomatedmethodlevel}.
+None of them isolates \emph{reuse}: whether a model, given a function that duplicates an existing helper,
+replaces the duplicate with a call. When reuse fails, it is also unclear why: the helper may not have
+been retrieved, the model may have seen it and ignored it, or the call may have been made incorrectly.
+
+We study this with a controlled benchmark and a \emph{reuse funnel} that assigns every failure to exactly one
+of these stages. Our contributions:
+\begin{itemize}
+  \setlength\itemsep{0pt}
+  \item A benchmark of 129 reuse-refactoring tasks in 12 Python repositories, built by inlining a helper into its
+        caller and kept only when the call site is covered by tests that still pass (\S\ref{sec:bench}).
+  \item An evaluation of four open models under four context conditions and two instructions, with failures
+        attributed to retrieval, decision or edit (\S\ref{sec:results}).
+  \item Two controls that change the conclusions: the helper's position among retrieved snippets
+        changes reuse for three of four models, and a renaming check separates naming cues from
+        memorisation of the public repositories.
+\end{itemize}
+
+\section{Related Work}
+
+\paragraph{Refactoring with LLMs.}
+SWE-Refactor \citep{xu2026swerefactorrepositorylevelbenchmarkrealworld} and MANTRA
+\citep{xu2025mantraenhancingautomatedmethodlevel} evaluate behaviour-preserving refactorings in Java;
+RefactorBench \citep{gautam2025refactorbenchevaluatingstatefulreasoning} poses multi-file Python refactorings
+to agents; CodeTaste \citep{thillen2026codetastellmsgeneratehumanlevel} asks whether models choose
+human-like refactorings. They measure correctness or agreement with humans, not reuse of existing code.
+
+\paragraph{Repository context and reuse.}
+RepoExec \citep{hai-etal-2025-impacts} introduces the dependency invocation rate for repository-level
+generation and finds that models often re-implement available dependencies; DependEval
+\citep{du-etal-2025-dependeval} benchmarks dependency understanding. We adopt the idea of measuring
+invocation, but for refactoring, where the duplicated logic is already present and must be recognised.
+
+\paragraph{Retrieval for code.}
+CodeRAG \citep{zhang-etal-2025-coderag}, ReflectCode \citep{liu-etal-2025-beyond-function},
+CoRet \citep{fehr-etal-2025-coret} and Think-Search-Patch \citep{xiong-etal-2025-think} improve retrieval
+for completion, change requests, editing and repair. We use BM25 \citep{robertson2009bm25} and an oracle
+to separate retrieval quality from what the model does with the retrieved code.
+
+\paragraph{Instructions and context position.}
+CodeIF \citep{yan-etal-2025-codeif} shows that instruction following in code generation varies widely;
+we compare a generic refactoring instruction with an explicit reuse instruction. Models use information
+unevenly across long contexts \citep{liu-etal-2024-lost}; we test whether the helper's position among
+retrieved snippets matters.
+
+\section{Benchmark}
+\label{sec:bench}
+
+\paragraph{Task construction.}
+For each repository we find statement-level calls from a function $F$ to a repository helper $H$
+(a module function, a method called via \texttt{self}, or a function of an imported module).
+We inline $H$'s body at the call site, binding arguments, renaming locals to avoid clashes and
+turning early returns of $H$ into returns of $F$. The mutated $F$ duplicates $H$; the original $F$,
+which calls $H$, is the reference. A task is kept only if the call site is covered by the test suite
+and the full suite still passes after inlining. Inlining an overridable method would change subclass
+behaviour, so methods defined by more than one class are skipped.
+
+\paragraph{Data.}
+We use 12 Python libraries with fast test suites (boltons, cachetools, click, mistune, parso, pycparser,
+pyflakes, pygments, python-tabulate, sqlparse, tomlkit, toolz) at pinned commits. We keep every task whose
+helper lives in another module (36 tasks) and a seeded sample of same-module tasks, up to 12 per repository,
+giving 129 tasks. Helpers have 2--30 lines (median 7); 64 are methods called via \texttt{self}, 61 plain
+functions and 4 module attributes.
+
+\paragraph{Conditions.}
+All conditions except \textsc{file} share a base context: the module's imports and the mutated $F$
+(with its class header). \textsc{none} adds nothing. \textsc{bm25} adds the top-5 repository functions
+retrieved with BM25 using $F$ as the query; the original $F$ is excluded from the index.
+\textsc{oracle} adds $H$ and the top-4 BM25 distractors, with $H$ at a seeded random position;
+\textsc{oracle-first}/\textsc{last} place it first or last (\S\ref{sec:position}).
+\textsc{file} shows the whole mutated module, truncated to 30k characters around $F$ (53 tasks);
+it contains $H$ only for same-module helpers (80 tasks after truncation).
+Each condition is crossed with two instructions: \emph{generic} (``Refactor this function to improve its
+readability and maintainability'') and \emph{reuse}, which adds ``Where possible, reuse existing functions
+from the project instead of re-implementing their logic.'' Both ask the model to keep the name, signature
+and behaviour and to output only the changed function and any new helpers.
+
+\paragraph{Evaluation.}
+The model's function replaces $F$; new helper functions or methods are added, but redefinitions of existing
+code are dropped and the output is marked non-compliant. We run the repository's tests in a sandbox.
+An output is \emph{valid} if it is compliant and the tests pass; it \emph{reuses} the helper if the new $F$
+calls $H$ or a near-identical copy of $H$ elsewhere in the repository, resolved through imports.
+The \emph{reuse funnel} assigns each task to one stage: $H$ \emph{not in context}, in context but
+\emph{ignored}, called but \emph{broken} (tests fail), or success. Conditions and models are compared
+per task with exact McNemar tests.
+
+\section{Experimental Setup}
+
+We evaluate Qwen2.5-Coder-7B-Instruct \citep[Q2.5C-7B;][]{hui2024qwen25codertechnicalreport} and
+DeepSeek-Coder-6.7B-Instruct \citep[DSC-6.7B;][]{guo2024deepseekcoderlargelanguagemodel} in bf16 with
+Hugging Face Transformers, and two 2025--26 models in 4-bit quantisation with vLLM
+\citep{kwon2023efficientmemorymanagementlarge}: Qwen3-Coder-30B-A3B-Instruct
+\citep[Q3C-30B, a mixture of experts with 3B active parameters;][]{yang2025qwen3technicalreport,qwen3coder-awq}
+and Qwen3.8-27B \citep[Q3.8-27B, thinking disabled;][]{qwen38-int4}. All runs use greedy decoding,
+at most 2{,}048 new tokens, and a single 24\,GB GPU; each model answers 1{,}032 prompts
+(129 tasks $\times$ 4 conditions $\times$ 2 instructions), plus 516 for the position ablation.
+
+\section{Results}
+\label{sec:results}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\begin{tabular}{llcccc}
+\toprule
+Model & Instr. & \textsc{none} & \textsc{bm25} & \textsc{oracle} & \textsc{file} \\
+\midrule
+\input{tables/main.tex}
+\bottomrule
+\end{tabular}
+\caption{Helper reuse in \% of 129 tasks (valid outputs in \% in parentheses).}
+\label{tab:main}
+\end{table}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{\textsc{bm25}} & \multicolumn{2}{c}{\textsc{oracle}} \\
+Model & generic & reuse & generic & reuse \\
+\midrule
+\input{tables/funnel.tex}
+\bottomrule
+\end{tabular}
+\caption{Reuse funnel over 129 tasks: not in context / ignored / broken / success.}
+\label{tab:funnel}
+\end{table}
+
+\paragraph{Without context, models re-implement.}
+In \textsc{none}, reuse is 1--5\% for three models and at most 12\% for Q3.8-27B (Table~\ref{tab:main}).
+Instead, the smaller models write a new helper of their own in 68\% (Q2.5C-7B) and 48\% (DSC-6.7B)
+of outputs (Q3C-30B 15\%, Q3.8-27B 10\%).
+Many of the remaining calls without context are explained by the prompt itself: the helper's name already
+appears in the module's imports in 44 of the 258 \textsc{none} prompts.
+
+\paragraph{The decision, not retrieval, is the main loss.}
+BM25 places the helper in the top 5 for 76\% of tasks (MRR 0.58), so retrieval loses 31 tasks.
+With the helper guaranteed in context and the generic instruction, three models ignore it in 80--105
+of 129 tasks, and even Q3.8-27B in 60 (Table~\ref{tab:funnel}). Calls that break the tests are rare
+for the newer models (0--5) but not for the 7B models (up to 21).
+Only for Q3.8-27B with the reuse instruction does retrieval become the larger loss (31 not retrieved vs.\ 13 ignored).
+Whole-module context yields the least reuse of the three context conditions for every model,
+although the helper is visible in 80 tasks.
+
+\paragraph{An explicit instruction raises reuse.}
+Adding the reuse sentence raises reuse in every condition with context, e.g.\ \textsc{oracle} from 19\% to 54\%
+for Q3C-30B and from 53\% to 84\% for Q3.8-27B, while validity drops by at most 6 points.
+Models can reuse, but they do not consider it part of refactoring unless asked.
+
+\paragraph{Stronger is not the same as more reusing.}
+Q3C-30B produces valid code in 83--93\% of cases versus 36--60\% for the 7B models, yet it does not
+reuse significantly more than Q2.5C-7B in any condition; with \textsc{oracle} and the generic instruction it reuses less
+(10 vs.\ 35 discordant tasks, $p<.001$). Q3.8-27B reuses more than both in every condition with context
+($p\le.002$), e.g.\ \textsc{bm25} with the reuse instruction 74\% vs.\ 41--47\%.
+
+\subsection{Position of the helper}
+\label{sec:position}
+
+\begin{table*}[t]
+\centering
+\small
+\begin{tabular}{lccccc|ccccc}
+\toprule
+& \multicolumn{5}{c|}{generic} & \multicolumn{5}{c}{reuse} \\
+Model & first & random & last & first/last only & $p$ & first & random & last & first/last only & $p$ \\
+\midrule
+\input{tables/position.tex}
+\bottomrule
+\end{tabular}
+\caption{Tasks (of 129) where the helper is reused when placed first, at a seeded random position, or last among
+the five \textsc{oracle} snippets; discordant tasks and exact McNemar $p$ for first vs.\ last.}
+\label{tab:position}
+\end{table*}
+
+DSC-6.7B reused the helper more with \textsc{bm25} than with \textsc{oracle}, although \textsc{oracle} always
+contains it. BM25 usually ranks the helper first, so we repeated \textsc{oracle} with the helper first or last,
+with identical snippets otherwise (Table~\ref{tab:position}). Three models show a primacy effect, but under
+different instructions: DSC-6.7B only with the reuse instruction (75 vs.\ 55 tasks, $p<.001$), Q3C-30B and
+Q3.8-27B only with the generic one (37 vs.\ 25 and 78 vs.\ 69). Q2.5C-7B shows none.
+Reordering identical snippets changes the outcome of up to 30 tasks (23\%) per model and instruction. Oracle upper
+bounds should therefore fix the helper's position, and differences between conditions should be tested per
+task rather than read from aggregate rates.
+
+\subsection{Memorisation or naming?}
+\label{sec:renaming}
+
+\begin{table}[t]
+\centering
+\small
+\setlength{\tabcolsep}{3pt}
+\begin{tabular}{llccc}
+\toprule
+Model & Instr. & \textsc{bm25} & \textsc{oracle} & \textsc{file} \\
+\midrule
+\input{tables/renamed.tex}
+\bottomrule
+\end{tabular}
+\caption{Helper reused (of 114 tasks) with the original name $\to$ with a neutral name in the prompt
+(McNemar $p$).}
+\label{tab:renamed}
+\end{table}
+
+All repositories are public and predate the models, so a model might reuse the helper because it remembers
+the original caller. We re-ran the two newer models with the helper shown under a neutral name
+(\texttt{fn\_<hash>}) everywhere in the prompt; outputs are mapped back before testing, and any use of the
+original, never-shown name is counted as memorised and broken. We use the 114 tasks whose helper name is
+unique and not also a builtin or standard-library name.
+Memorisation is rare: 18 of 912 outputs for Q3.8-27B and 5 for Q3C-30B use the original name, almost all
+for private sibling methods such as \texttt{self.\_parse\_key}. Without context, reuse falls to 2 of 114
+for both models. Neutral names, however, reduce reuse substantially for both models (Table~\ref{tab:renamed}):
+with \textsc{bm25} and the generic instruction both lose about 60\% of their reuse. Since the control model
+loses a similar share, the drop reflects the loss of a descriptive name as a cue rather than memorisation
+specific to Q3.8-27B. Q3.8-27B still reuses far more than Q3C-30B under renaming
+(\textsc{oracle}, reuse instruction: 37 vs.\ 1 discordant tasks, $p<.001$).
+
+\section{Conclusion}
+
+Reuse in LLM refactoring is lost mainly at the model's decision, not at retrieval: models see the helper and
+ignore it, unless explicitly asked to reuse. Better retrieval alone would therefore recover few tasks for most
+models. Higher code quality does not imply more reuse, and reuse depends on surface cues such as the helper's
+position and name. Benchmarks of repository-aware code editing should report reuse alongside test results,
+fix the position of oracle context and control for naming. We release the benchmark, prompts, outputs and
+evaluation code.\todo{repository link}
+
+\section*{Limitations}
+
+Tasks are created by deterministic inlining, so the duplicated code is a near-verbatim copy of the helper;
+real duplication is usually paraphrased, which would make reuse harder to recognise, and a set of tasks
+mined from real commits is future work. We use 12 popular Python libraries; results may differ for other
+languages and for private code. Passing tests do not prove equivalence, although we only keep tasks whose
+call site is covered. We evaluate four open models with greedy decoding and a single run, two of them
+quantised to 4 bits; we do not evaluate proprietary models, dense or agentic retrieval. Our renaming check
+changes names only in the prompt; it does not rule out memorisation of code structure. A small number of
+outputs were re-evaluated on a different machine after harness fixes, where test outcomes can differ slightly.
+
+\bibliography{references}
+
+\end{document}
