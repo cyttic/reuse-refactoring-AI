@@ -1,0 +1,8 @@
+{
+  "run": "qwen38-27b-renamed",
+  "model": "RedHatAI/Qwen3.8-27B-INT4",
+  "extra_args": "--backend vllm --conditions none,bm25,oracle,file --max-model-len 20480 --chunk 128 --gpu-memory-utilization 0.95 --no-thinking --text-only --enforce-eager --kv-cache-dtype bfloat16 --rename-helper",
+  "gpu": "NVIDIA RTX A5000, 24564 MiB",
+  "code_commit": "68a4d99e848885324088961039074ae442d4813b",
+  "started": "2026-10-28 08:37:34"
+}
